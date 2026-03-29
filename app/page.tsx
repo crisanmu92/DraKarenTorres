@@ -35,6 +35,8 @@ import { OverviewPanel } from "@/components/dashboard/overview-panel";
 import { getDashboardSummary } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "COP",
@@ -207,6 +209,123 @@ function EmptyState({ children }: EmptyStateProps) {
   );
 }
 
+type PatientSummary = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  identification: string;
+};
+
+type SupplierSummary = {
+  id: string;
+  companyName: string;
+};
+
+type ProductSummary = {
+  id: string;
+  name: string;
+  sku: string | null;
+};
+
+type SaleItemSummary = {
+  id: string;
+  name: string;
+  type: SaleItemType;
+  unitPrice: unknown;
+};
+
+type RecentPatient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  identification: string;
+  phone: string;
+  email: string | null;
+  birthDate: Date | null;
+  allergies: string | null;
+  previousTreatments: string | null;
+  importantNotes: string | null;
+  lastVisitAt: Date | null;
+  nextVisitAt: Date | null;
+};
+
+type RecentSupplier = {
+  id: string;
+  companyName: string;
+  commercialAdvisor: string | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+};
+
+type RecentProduct = {
+  id: string;
+  name: string;
+  description: string | null;
+  sku: string | null;
+  lotNumber: string;
+  stockQuantity: unknown;
+  minStockQuantity: unknown;
+  unit: InventoryUnit;
+  expiresAt: Date | null;
+  supplierId: string;
+  isActive: boolean;
+  supplier: {
+    id: string;
+    companyName: string;
+  };
+};
+
+type RecentSaleItem = {
+  id: string;
+  name: string;
+  type: SaleItemType;
+  description: string | null;
+  unitPrice: unknown;
+  productId: string | null;
+  product: {
+    name: string;
+  } | null;
+};
+
+type RecentRevenue = {
+  id: string;
+  occurredAt: Date;
+  amount: unknown;
+  paymentMethod: PaymentMethod;
+  notes: string | null;
+  patientId: string;
+  saleItemId: string;
+  patient: {
+    firstName: string;
+    lastName: string;
+  };
+  saleItem: {
+    name: string;
+  };
+};
+
+type RecentExpense = {
+  id: string;
+  occurredAt: Date;
+  amount: unknown;
+  category: ExpenseCategory;
+  description: string;
+  notes: string | null;
+};
+
+type RecentMovement = {
+  id: string;
+  occurredAt: Date;
+  type: InventoryMovementType;
+  quantity: unknown;
+  reason: string | null;
+  productId: string;
+  product: {
+    name: string;
+  };
+};
+
 type RecordActionsProps = {
   id: string;
   deleteAction: (formData: FormData) => Promise<void>;
@@ -233,76 +352,96 @@ export default async function Home() {
   const summary = await getDashboardSummary();
   const currentMonthLabel = monthFormatter.format(new Date());
 
-  const [
-    patientCount,
-    supplierCount,
-    productCount,
-    saleItemCount,
-    recentPatients,
-    recentSuppliers,
-    recentProducts,
-    recentSaleItems,
-    recentRevenues,
-    recentExpenses,
-    recentMovements,
-    patients,
-    suppliers,
-    products,
-    saleItems,
-  ] = await Promise.all([
-    prisma.patient.count(),
-    prisma.supplier.count(),
-    prisma.product.count(),
-    prisma.saleItem.count(),
-    prisma.patient.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.supplier.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.product.findMany({
-      include: { supplier: true },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.saleItem.findMany({
-      include: { product: true },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.revenue.findMany({
-      include: { patient: true, saleItem: true },
-      orderBy: { occurredAt: "desc" },
-      take: 6,
-    }),
-    prisma.expense.findMany({
-      orderBy: { occurredAt: "desc" },
-      take: 6,
-    }),
-    prisma.inventoryMovement.findMany({
-      include: { product: true },
-      orderBy: { occurredAt: "desc" },
-      take: 6,
-    }),
-    prisma.patient.findMany({
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, firstName: true, lastName: true, identification: true },
-    }),
-    prisma.supplier.findMany({
-      orderBy: { companyName: "asc" },
-      select: { id: true, companyName: true },
-    }),
-    prisma.product.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, sku: true },
-    }),
-    prisma.saleItem.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, type: true, unitPrice: true },
-    }),
-  ]);
+  let patientCount = 0;
+  let supplierCount = 0;
+  let productCount = 0;
+  let saleItemCount = 0;
+  let recentPatients: RecentPatient[] = [];
+  let recentSuppliers: RecentSupplier[] = [];
+  let recentProducts: RecentProduct[] = [];
+  let recentSaleItems: RecentSaleItem[] = [];
+  let recentRevenues: RecentRevenue[] = [];
+  let recentExpenses: RecentExpense[] = [];
+  let recentMovements: RecentMovement[] = [];
+  let patients: PatientSummary[] = [];
+  let suppliers: SupplierSummary[] = [];
+  let products: ProductSummary[] = [];
+  let saleItems: SaleItemSummary[] = [];
+
+  try {
+    [
+      patientCount,
+      supplierCount,
+      productCount,
+      saleItemCount,
+      recentPatients,
+      recentSuppliers,
+      recentProducts,
+      recentSaleItems,
+      recentRevenues,
+      recentExpenses,
+      recentMovements,
+      patients,
+      suppliers,
+      products,
+      saleItems,
+    ] = await Promise.all([
+      prisma.patient.count(),
+      prisma.supplier.count(),
+      prisma.product.count(),
+      prisma.saleItem.count(),
+      prisma.patient.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
+      prisma.supplier.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
+      prisma.product.findMany({
+        include: { supplier: true },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
+      prisma.saleItem.findMany({
+        include: { product: true },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
+      prisma.revenue.findMany({
+        include: { patient: true, saleItem: true },
+        orderBy: { occurredAt: "desc" },
+        take: 6,
+      }),
+      prisma.expense.findMany({
+        orderBy: { occurredAt: "desc" },
+        take: 6,
+      }),
+      prisma.inventoryMovement.findMany({
+        include: { product: true },
+        orderBy: { occurredAt: "desc" },
+        take: 6,
+      }),
+      prisma.patient.findMany({
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        select: { id: true, firstName: true, lastName: true, identification: true },
+      }),
+      prisma.supplier.findMany({
+        orderBy: { companyName: "asc" },
+        select: { id: true, companyName: true },
+      }),
+      prisma.product.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, sku: true },
+      }),
+      prisma.saleItem.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, type: true, unitPrice: true },
+      }),
+    ]);
+  } catch {
+    // Leave the page renderable even when the database is temporarily unreachable.
+  }
 
   return (
     <main className="relative overflow-hidden">
