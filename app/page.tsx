@@ -157,6 +157,10 @@ function formatDateTimeInput(value: Date | null | undefined) {
   return offsetDate.toISOString().slice(0, 16);
 }
 
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
 type FieldProps = {
   label: string;
   hint?: string;
@@ -176,15 +180,16 @@ function Field({ label, hint, children }: FieldProps) {
 }
 
 type FormCardProps = {
+  id?: string;
   eyebrow: string;
   title: string;
   description: string;
   children: React.ReactNode;
 };
 
-function FormCard({ eyebrow, title, description, children }: FormCardProps) {
+function FormCard({ id, eyebrow, title, description, children }: FormCardProps) {
   return (
-    <article className={sectionCardClassName}>
+    <article id={id} className={sectionCardClassName}>
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
         {eyebrow}
       </p>
@@ -326,6 +331,12 @@ type RecentMovement = {
   };
 };
 
+type ExpenseBreakdownItem = {
+  category: ExpenseCategory;
+  total: number;
+  share: number;
+};
+
 type RecordActionsProps = {
   id: string;
   deleteAction: (formData: FormData) => Promise<void>;
@@ -351,11 +362,23 @@ function RecordActions({ id, deleteAction, updateLabel = "Guardar cambios" }: Re
 export default async function Home() {
   const summary = await getDashboardSummary();
   const currentMonthLabel = monthFormatter.format(new Date());
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
   let patientCount = 0;
   let supplierCount = 0;
   let productCount = 0;
   let saleItemCount = 0;
+  let upcomingFollowUps = 0;
+  let incomeTodayTotal = 0;
+  let expenseTodayTotal = 0;
+  let averageTicket = 0;
+  let expenseBreakdown: ExpenseBreakdownItem[] = [];
   let recentPatients: RecentPatient[] = [];
   let recentSuppliers: RecentSupplier[] = [];
   let recentProducts: RecentProduct[] = [];
@@ -381,6 +404,11 @@ export default async function Home() {
       recentRevenues,
       recentExpenses,
       recentMovements,
+      upcomingFollowUps,
+      incomeTodayTotal,
+      expenseTodayTotal,
+      averageTicket,
+      expenseBreakdown,
       patients,
       suppliers,
       products,
@@ -422,6 +450,76 @@ export default async function Home() {
         orderBy: { occurredAt: "desc" },
         take: 6,
       }),
+      prisma.patient.count({
+        where: {
+          nextVisitAt: {
+            gte: now,
+            lte: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7),
+          },
+        },
+      }),
+      prisma.revenue
+        .aggregate({
+          _sum: { amount: true },
+          where: {
+            occurredAt: {
+              gte: todayStart,
+              lt: tomorrowStart,
+            },
+          },
+        })
+        .then((result) => toNumber(result._sum.amount)),
+      prisma.expense
+        .aggregate({
+          _sum: { amount: true },
+          where: {
+            occurredAt: {
+              gte: todayStart,
+              lt: tomorrowStart,
+            },
+          },
+        })
+        .then((result) => toNumber(result._sum.amount)),
+      prisma.revenue
+        .aggregate({
+          _avg: { amount: true },
+          where: {
+            occurredAt: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+        })
+        .then((result) => toNumber(result._avg.amount)),
+      prisma.expense
+        .groupBy({
+          by: ["category"],
+          _sum: { amount: true },
+          where: {
+            occurredAt: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+          orderBy: {
+            _sum: {
+              amount: "desc",
+            },
+          },
+        })
+        .then((rows) => {
+          const total = rows.reduce((acc, row) => acc + toNumber(row._sum.amount), 0);
+
+          return rows.map((row) => {
+            const amount = toNumber(row._sum.amount);
+
+            return {
+              category: row.category,
+              total: amount,
+              share: total > 0 ? (amount / total) * 100 : 0,
+            };
+          });
+        }),
       prisma.patient.findMany({
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
         select: { id: true, firstName: true, lastName: true, identification: true },
@@ -442,6 +540,23 @@ export default async function Home() {
   } catch {
     // Leave the page renderable even when the database is temporarily unreachable.
   }
+
+  const operationalMargin =
+    summary.incomeMonthTotal > 0
+      ? (summary.balanceMonthTotal / summary.incomeMonthTotal) * 100
+      : 0;
+  const dailyBalance = incomeTodayTotal - expenseTodayTotal;
+  const navigationLinks = [
+    { href: "#resumen", label: "Resumen" },
+    { href: "#finanzas", label: "Utilidades y gastos" },
+    { href: "#pacientes", label: "Pacientes" },
+    { href: "#proveedores", label: "Proveedores" },
+    { href: "#productos", label: "Productos" },
+    { href: "#precios", label: "Items de venta" },
+    { href: "#ingresos", label: "Caja diaria" },
+    { href: "#egresos", label: "Gastos" },
+    { href: "#inventario", label: "Inventario" },
+  ];
 
   return (
     <main className="relative overflow-hidden">
@@ -481,52 +596,217 @@ export default async function Home() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="Ingresos del mes"
-            value={currencyFormatter.format(summary.incomeMonthTotal)}
-            helper={`${summary.revenueCount} ingresos registrados en el periodo actual.`}
-            tone="positive"
-          />
-          <MetricCard
-            label="Egresos del mes"
-            value={currencyFormatter.format(summary.expenseMonthTotal)}
-            helper={`${summary.expenseCount} egresos registrados entre operacion y gastos fijos.`}
-            tone="negative"
-          />
-          <MetricCard
-            label="Balance neto"
-            value={currencyFormatter.format(summary.balanceMonthTotal)}
-            helper="Resultado del mes actual, calculado como ingresos menos egresos."
-          />
-          <MetricCard
-            label="Alertas de inventario"
-            value={`${summary.lowStockProductsCount + summary.nearExpiryProductsCount}`}
-            helper={`${summary.lowStockProductsCount} con stock bajo y ${summary.nearExpiryProductsCount} proximos a vencer.`}
-          />
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="grid gap-4">
+            <section id="resumen" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                label="Ingresos del mes"
+                value={currencyFormatter.format(summary.incomeMonthTotal)}
+                helper={`${summary.revenueCount} ingresos registrados en el periodo actual.`}
+                tone="positive"
+              />
+              <MetricCard
+                label="Egresos del mes"
+                value={currencyFormatter.format(summary.expenseMonthTotal)}
+                helper={`${summary.expenseCount} egresos registrados entre operacion y gastos fijos.`}
+                tone="negative"
+              />
+              <MetricCard
+                label="Balance neto"
+                value={currencyFormatter.format(summary.balanceMonthTotal)}
+                helper="Resultado del mes actual, calculado como ingresos menos egresos."
+              />
+              <MetricCard
+                label="Alertas de inventario"
+                value={`${summary.lowStockProductsCount + summary.nearExpiryProductsCount}`}
+                helper={`${summary.lowStockProductsCount} con stock bajo y ${summary.nearExpiryProductsCount} proximos a vencer.`}
+              />
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                label="Pacientes"
+                value={String(patientCount)}
+                helper={`${upcomingFollowUps} controles programados para los proximos 7 dias.`}
+              />
+              <MetricCard
+                label="Proveedores"
+                value={String(supplierCount)}
+                helper="Laboratorios y distribuidores registrados."
+              />
+              <MetricCard
+                label="Productos"
+                value={String(productCount)}
+                helper="Catalogo operativo con stock, lote y vencimiento."
+              />
+              <MetricCard
+                label="Items de venta"
+                value={String(saleItemCount)}
+                helper="Tratamientos o productos con precio de venta."
+              />
+            </section>
+          </div>
+
+          <aside className="hidden xl:block">
+            <div className="sticky top-6 grid gap-4">
+              <article className="rounded-4xl border border-(--color-line) bg-white/90 p-5 shadow-(--shadow-card)">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
+                  Navegacion
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {navigationLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      className="rounded-2xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3 text-sm font-semibold text-(--color-ink)"
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </article>
+
+              <article className="rounded-4xl border border-(--color-line) bg-[#23302b] p-5 text-[#f8f3ec] shadow-(--shadow-card)">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/56">
+                  Tu foco hoy
+                </p>
+                <div className="mt-4 grid gap-3 text-sm leading-6 text-white/80">
+                  <p>1. Registra pacientes y servicios primero.</p>
+                  <p>2. Lleva ingresos y egresos todos los dias.</p>
+                  <p>3. Revisa inventario y seguimientos antes de cerrar jornada.</p>
+                </div>
+              </article>
+
+              <article className="rounded-4xl border border-(--color-line) bg-white/90 p-5 shadow-(--shadow-card)">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
+                  Indicadores rapidos
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-3xl bg-[var(--color-panel)] px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-(--color-muted)">
+                      Utilidad del mes
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-(--color-ink)">
+                      {formatMoney(summary.balanceMonthTotal)}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl bg-[var(--color-panel)] px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-(--color-muted)">
+                      Caja de hoy
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-(--color-ink)">
+                      {formatMoney(dailyBalance)}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl bg-[var(--color-panel)] px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-(--color-muted)">
+                      Proximos controles
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-(--color-ink)">
+                      {upcomingFollowUps}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </aside>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="Pacientes"
-            value={String(patientCount)}
-            helper="Base clinica acumulada en el sistema."
-          />
-          <MetricCard
-            label="Proveedores"
-            value={String(supplierCount)}
-            helper="Laboratorios y distribuidores registrados."
-          />
-          <MetricCard
-            label="Productos"
-            value={String(productCount)}
-            helper="Catalogo operativo con stock, lote y vencimiento."
-          />
-          <MetricCard
-            label="Items de venta"
-            value={String(saleItemCount)}
-            helper="Tratamientos o productos con precio de venta."
-          />
+        <section id="finanzas" className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+          <article className={sectionCardClassName}>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
+              Lectura financiera
+            </p>
+            <h2 className="mt-3 font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink)">
+              Utilidad y caja con mas detalle
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-(--color-muted)">
+              Esta utilidad es operativa: ingresos menos egresos registrados. Ya puedes seguir
+              caja del dia, ticket promedio y peso real de cada categoria de gasto.
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-3xl bg-(--color-panel) p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">
+                  Utilidad operativa
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-(--color-ink)">
+                  {formatMoney(summary.balanceMonthTotal)}
+                </p>
+                <p className="mt-2 text-sm text-(--color-muted)">
+                  Margen del mes: {formatPercent(operationalMargin)}
+                </p>
+              </div>
+              <div className="rounded-3xl bg-(--color-panel) p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">
+                  Caja de hoy
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-(--color-ink)">
+                  {formatMoney(dailyBalance)}
+                </p>
+                <p className="mt-2 text-sm text-(--color-muted)">
+                  Ingresos {formatMoney(incomeTodayTotal)} · Egresos {formatMoney(expenseTodayTotal)}
+                </p>
+              </div>
+              <div className="rounded-3xl bg-(--color-panel) p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">
+                  Ticket promedio
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-(--color-ink)">
+                  {formatMoney(averageTicket)}
+                </p>
+                <p className="mt-2 text-sm text-(--color-muted)">
+                  Promedio por ingreso registrado en el mes.
+                </p>
+              </div>
+              <div className="rounded-3xl bg-(--color-panel) p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">
+                  Seguimientos
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-(--color-ink)">
+                  {upcomingFollowUps}
+                </p>
+                <p className="mt-2 text-sm text-(--color-muted)">
+                  Pacientes con control en los proximos 7 dias.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article className={sectionCardClassName}>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
+              Gasto del mes
+            </p>
+            <h3 className="mt-3 font-display text-3xl leading-none tracking-[-0.03em] text-(--color-ink)">
+              En que se te esta yendo la caja
+            </h3>
+            <div className="mt-6 grid gap-3">
+              {expenseBreakdown.length === 0 ? (
+                <EmptyState>Aun no hay egresos suficientes para desglosar categorias.</EmptyState>
+              ) : (
+                expenseBreakdown.map((item) => (
+                  <div key={item.category} className="grid gap-2 rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-(--color-ink)">
+                        {expenseCategoryLabels[item.category]}
+                      </p>
+                      <p className="text-sm font-semibold text-(--color-ink)">
+                        {formatMoney(item.total)}
+                      </p>
+                    </div>
+                    <div className="h-2 rounded-full bg-[var(--color-panel)]">
+                      <div
+                        className="h-2 rounded-full bg-[#23302b]"
+                        style={{ width: `${Math.min(item.share, 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-(--color-muted)">
+                      {formatPercent(item.share)} del gasto mensual registrado.
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </article>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -613,6 +893,7 @@ export default async function Home() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <FormCard
+              id="pacientes"
               eyebrow="Base clinica"
               title="Pacientes"
               description="Crea la ficha inicial del paciente con datos de contacto y seguimiento."
@@ -727,6 +1008,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="proveedores"
               eyebrow="Base comercial"
               title="Proveedores"
               description="Registra laboratorios o distribuidores para relacionarlos con productos."
@@ -800,6 +1082,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="productos"
               eyebrow="Catalogo"
               title="Productos e insumos"
               description="Guarda stock, lote, vencimiento y proveedor del producto."
@@ -945,6 +1228,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="precios"
               eyebrow="Precios"
               title="Items de venta"
               description="Define tratamientos y productos que podras facturar en ingresos."
@@ -1061,6 +1345,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="ingresos"
               eyebrow="Caja"
               title="Ingresos"
               description="Registra el ingreso asociando paciente, item vendido y medio de pago."
@@ -1200,6 +1485,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="egresos"
               eyebrow="Caja"
               title="Egresos"
               description="Registra gastos operativos, compras, software, impuestos y otros costos."
@@ -1300,6 +1586,7 @@ export default async function Home() {
             </FormCard>
 
             <FormCard
+              id="inventario"
               eyebrow="Inventario"
               title="Movimientos"
               description="Registra compras, ventas, ajustes, mermas y vencimientos de cada producto."
