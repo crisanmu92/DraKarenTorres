@@ -217,10 +217,14 @@ function RecordActions({ id, deleteAction, updateLabel = "Guardar cambios" }: Re
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <SubmitButton label={updateLabel} pendingLabel="Guardando..." variant="secondary" />
-      <form action={deleteAction}>
-        <input type="hidden" name="id" value={id} />
-        <SubmitButton label="Eliminar" pendingLabel="Eliminando..." variant="danger" />
-      </form>
+      <SubmitButton
+        label="Eliminar"
+        pendingLabel="Eliminando..."
+        variant="danger"
+        formAction={deleteAction}
+        name="id"
+        value={id}
+      />
     </div>
   );
 }

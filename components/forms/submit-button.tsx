@@ -1,17 +1,21 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
 
 type SubmitButtonProps = {
   label: string;
   pendingLabel?: string;
   variant?: "primary" | "secondary" | "danger";
-};
+} & Pick<ComponentProps<"button">, "formAction" | "name" | "value">;
 
 export function SubmitButton({
   label,
   pendingLabel,
   variant = "primary",
+  formAction,
+  name,
+  value,
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
   const className = {
@@ -27,6 +31,9 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={pending}
+      formAction={formAction}
+      name={name}
+      value={value}
       className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {pending ? pendingLabel ?? "Guardando..." : label}
