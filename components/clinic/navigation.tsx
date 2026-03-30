@@ -12,6 +12,7 @@ const navigationSections = [
     links: [
       { href: "/ingresos", label: "Ingresos" },
       { href: "/egresos", label: "Egresos" },
+      { href: "/reportes", label: "Reportes" },
     ],
   },
 ];
