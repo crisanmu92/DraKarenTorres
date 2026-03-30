@@ -14,21 +14,46 @@ export default async function RevenuesPage({
   searchParams?: Promise<{ error?: string; success?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const [patients, saleItems, revenues] = await Promise.all([
-    prisma.patient.findMany({
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, firstName: true, lastName: true, identification: true },
-    }),
-    prisma.saleItem.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, unitPrice: true },
-    }),
-    prisma.revenue.findMany({
-      include: { patient: true, saleItem: true },
-      orderBy: [{ occurredAt: "desc" }],
-      take: 12,
-    }),
-  ]);
+  let patients: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    identification: string;
+  }> = [];
+  let saleItems: Array<{
+    id: string;
+    name: string;
+    unitPrice: unknown;
+  }> = [];
+  let revenues: Array<{
+    id: string;
+    occurredAt: Date;
+    amount: unknown;
+    paymentMethod: PaymentMethod;
+    patient: { firstName: string; lastName: string };
+    saleItem: { name: string };
+  }> = [];
+  let pageError: string | null = null;
+
+  try {
+    [patients, saleItems, revenues] = await Promise.all([
+      prisma.patient.findMany({
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        select: { id: true, firstName: true, lastName: true, identification: true },
+      }),
+      prisma.saleItem.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, unitPrice: true },
+      }),
+      prisma.revenue.findMany({
+        include: { patient: true, saleItem: true },
+        orderBy: [{ occurredAt: "desc" }],
+        take: 12,
+      }),
+    ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion de ingresos en este momento.";
+  }
 
   return (
     <>
@@ -40,6 +65,7 @@ export default async function RevenuesPage({
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+      {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard

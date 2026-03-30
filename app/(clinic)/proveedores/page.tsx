@@ -23,19 +23,43 @@ const saleItemTypeLabels: Record<SaleItemType, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function SuppliersPage() {
-  const [suppliers, products, saleItems] = await Promise.all([
-    prisma.supplier.findMany({ orderBy: [{ createdAt: "desc" }], take: 10 }),
-    prisma.product.findMany({
-      include: { supplier: true },
-      orderBy: [{ createdAt: "desc" }],
-      take: 10,
-    }),
-    prisma.saleItem.findMany({
-      include: { product: true },
-      orderBy: [{ createdAt: "desc" }],
-      take: 10,
-    }),
-  ]);
+  let suppliers: Array<{
+    id: string;
+    companyName: string;
+    commercialAdvisor: string | null;
+    phone: string | null;
+  }> = [];
+  let products: Array<{
+    id: string;
+    name: string;
+    lotNumber: string;
+    supplier: { companyName: string };
+  }> = [];
+  let saleItems: Array<{
+    id: string;
+    name: string;
+    type: SaleItemType;
+    unitPrice: unknown;
+  }> = [];
+  let pageError: string | null = null;
+
+  try {
+    [suppliers, products, saleItems] = await Promise.all([
+      prisma.supplier.findMany({ orderBy: [{ createdAt: "desc" }], take: 10 }),
+      prisma.product.findMany({
+        include: { supplier: true },
+        orderBy: [{ createdAt: "desc" }],
+        take: 10,
+      }),
+      prisma.saleItem.findMany({
+        include: { product: true },
+        orderBy: [{ createdAt: "desc" }],
+        take: 10,
+      }),
+    ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion de proveedores y catalogo.";
+  }
 
   return (
     <>
@@ -44,6 +68,8 @@ export default async function SuppliersPage() {
         title="Proveedores, productos y catalogo"
         description="Aqui dejas lista la base maestra para operar ingresos e inventario."
       />
+
+      {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
       <div className="grid gap-4 xl:grid-cols-3">
         <FormCard eyebrow="Proveedores" title="Agregar proveedor" description="Registra laboratorios o distribuidores.">

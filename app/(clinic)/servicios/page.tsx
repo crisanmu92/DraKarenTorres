@@ -28,17 +28,34 @@ export default async function ServicesPage({
   searchParams?: Promise<{ error?: string; success?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const [products, saleItems] = await Promise.all([
-    prisma.product.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.saleItem.findMany({
-      include: { product: true },
-      orderBy: [{ createdAt: "desc" }],
-      take: 12,
-    }),
-  ]);
+  let products: Array<{
+    id: string;
+    name: string;
+  }> = [];
+  let saleItems: Array<{
+    id: string;
+    name: string;
+    type: SaleItemType;
+    unitPrice: unknown;
+    product: { name: string } | null;
+  }> = [];
+  let pageError: string | null = null;
+
+  try {
+    [products, saleItems] = await Promise.all([
+      prisma.product.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      prisma.saleItem.findMany({
+        include: { product: true },
+        orderBy: [{ createdAt: "desc" }],
+        take: 12,
+      }),
+    ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion de servicios.";
+  }
 
   return (
     <>
@@ -50,6 +67,7 @@ export default async function ServicesPage({
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+      {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard

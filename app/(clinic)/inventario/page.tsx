@@ -18,17 +18,35 @@ const inventoryMovementLabels: Record<InventoryMovementType, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-  const [products, movements] = await Promise.all([
-    prisma.product.findMany({
-      orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, sku: true },
-    }),
-    prisma.inventoryMovement.findMany({
-      include: { product: true },
-      orderBy: [{ occurredAt: "desc" }],
-      take: 12,
-    }),
-  ]);
+  let products: Array<{
+    id: string;
+    name: string;
+    sku: string | null;
+  }> = [];
+  let movements: Array<{
+    id: string;
+    occurredAt: Date;
+    type: InventoryMovementType;
+    quantity: unknown;
+    product: { name: string };
+  }> = [];
+  let pageError: string | null = null;
+
+  try {
+    [products, movements] = await Promise.all([
+      prisma.product.findMany({
+        orderBy: [{ name: "asc" }],
+        select: { id: true, name: true, sku: true },
+      }),
+      prisma.inventoryMovement.findMany({
+        include: { product: true },
+        orderBy: [{ occurredAt: "desc" }],
+        take: 12,
+      }),
+    ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion de inventario.";
+  }
 
   return (
     <>
@@ -37,6 +55,8 @@ export default async function InventoryPage() {
         title="Movimientos de inventario"
         description="Registra compras, salidas, ajustes, mermas y vencimientos de cada producto."
       />
+
+      {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard

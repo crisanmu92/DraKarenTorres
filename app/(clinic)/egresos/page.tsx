@@ -14,10 +14,17 @@ export default async function ExpensesPage({
   searchParams?: Promise<{ error?: string; success?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const expenses = await prisma.expense.findMany({
-    orderBy: [{ occurredAt: "desc" }],
-    take: 12,
-  });
+  let expenses: Awaited<ReturnType<typeof prisma.expense.findMany>> = [];
+  let pageError: string | null = null;
+
+  try {
+    expenses = await prisma.expense.findMany({
+      orderBy: [{ occurredAt: "desc" }],
+      take: 12,
+    });
+  } catch {
+    pageError = "No se pudo cargar la informacion de egresos en este momento.";
+  }
 
   return (
     <>
@@ -29,6 +36,7 @@ export default async function ExpensesPage({
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+      {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard

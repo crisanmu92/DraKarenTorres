@@ -12,10 +12,17 @@ export default async function PatientsPage({
   searchParams?: Promise<{ error?: string; success?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const patients = await prisma.patient.findMany({
-    orderBy: [{ createdAt: "desc" }],
-    take: 12,
-  });
+  let patients: Awaited<ReturnType<typeof prisma.patient.findMany>> = [];
+  let pageError: string | null = null;
+
+  try {
+    patients = await prisma.patient.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      take: 12,
+    });
+  } catch {
+    pageError = "No se pudo cargar la base de pacientes en este momento.";
+  }
 
   return (
     <>
@@ -27,6 +34,7 @@ export default async function PatientsPage({
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+      {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard

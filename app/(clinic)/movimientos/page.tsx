@@ -5,17 +5,37 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function MovementsPage() {
-  const [revenues, expenses] = await Promise.all([
-    prisma.revenue.findMany({
-      include: { patient: true, saleItem: true },
-      orderBy: [{ occurredAt: "desc" }],
-      take: 12,
-    }),
-    prisma.expense.findMany({
-      orderBy: [{ occurredAt: "desc" }],
-      take: 12,
-    }),
-  ]);
+  let revenues: Array<{
+    id: string;
+    occurredAt: Date;
+    amount: unknown;
+    paymentMethod: import("@prisma/client").PaymentMethod;
+    patient: { firstName: string; lastName: string };
+    saleItem: { name: string };
+  }> = [];
+  let expenses: Array<{
+    id: string;
+    occurredAt: Date;
+    amount: unknown;
+    description: string;
+  }> = [];
+  let pageError: string | null = null;
+
+  try {
+    [revenues, expenses] = await Promise.all([
+      prisma.revenue.findMany({
+        include: { patient: true, saleItem: true },
+        orderBy: [{ occurredAt: "desc" }],
+        take: 12,
+      }),
+      prisma.expense.findMany({
+        orderBy: [{ occurredAt: "desc" }],
+        take: 12,
+      }),
+    ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion de movimientos.";
+  }
 
   return (
     <>
@@ -24,6 +44,8 @@ export default async function MovementsPage() {
         title="Movimientos financieros"
         description="Aqui revisas rapidamente entradas y salidas recientes de dinero."
       />
+
+      {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
       <section className="grid gap-4 xl:grid-cols-2">
         <FormCard

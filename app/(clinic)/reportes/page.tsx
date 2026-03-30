@@ -72,6 +72,7 @@ export default async function ReportsPage({
     category: keyof typeof expenseCategoryLabels;
     description: string;
   }> = [];
+  let pageError: string | null = null;
 
   try {
     [
@@ -138,8 +139,10 @@ export default async function ReportsPage({
         orderBy: [{ occurredAt: "desc" }],
         take: 8,
       }),
-    ]);
-  } catch {}
+      ]);
+  } catch {
+    pageError = "No se pudo cargar la informacion del reporte en este momento.";
+  }
 
   const utility = incomeTotal - expenseTotal;
   const utilityMargin = incomeTotal > 0 ? (utility / incomeTotal) * 100 : 0;
@@ -152,6 +155,8 @@ export default async function ReportsPage({
         title="Resumen financiero por mes"
         description="Filtra por mes para ver ingresos, egresos, utilidad y el detalle de costos del periodo."
       />
+
+      {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
       <article className={sectionCardClassName}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
