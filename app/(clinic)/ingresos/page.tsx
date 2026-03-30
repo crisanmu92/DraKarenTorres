@@ -1,9 +1,9 @@
 import { PaymentMethod } from "@prisma/client";
 
-import { createRevenue } from "@/app/actions";
+import { createRevenue, deleteRevenue, updateRevenue } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
+import { formatDate, formatDateTimeInput, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,9 @@ export default async function RevenuesPage({
     occurredAt: Date;
     amount: unknown;
     paymentMethod: PaymentMethod;
+    notes: string | null;
+    patientId: string;
+    saleItemId: string;
     patient: { firstName: string; lastName: string };
     saleItem: { name: string };
   }> = [];
@@ -137,6 +140,51 @@ export default async function RevenuesPage({
                     <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(revenue.amount)}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(revenue.occurredAt)}</p>
+                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Editar o eliminar
+                    </summary>
+                    <div className="mt-4 grid gap-4">
+                      <form action={updateRevenue} className="grid gap-4">
+                        <input type="hidden" name="id" value={revenue.id} />
+                        <div className={formGridClassName}>
+                          <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeInput(revenue.occurredAt)} className={inputClassName} /></Field>
+                          <Field label="Monto"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(revenue.amount)} className={inputClassName} required /></Field>
+                          <Field label="Cliente">
+                            <select name="patientId" defaultValue={revenue.patientId} className={inputClassName} required>
+                              {patients.map((patient) => (
+                                <option key={patient.id} value={patient.id}>
+                                  {patient.lastName}, {patient.firstName} · {patient.identification}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Concepto o servicio">
+                            <select name="saleItemId" defaultValue={revenue.saleItemId} className={inputClassName} required>
+                              {saleItems.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} · {formatMoney(item.unitPrice)}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Medio de pago">
+                            <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
+                              {Object.values(PaymentMethod).map((method) => (
+                                <option key={method} value={method}>{paymentMethodLabels[method]}</option>
+                              ))}
+                            </select>
+                          </Field>
+                        </div>
+                        <Field label="Notas"><textarea name="notes" defaultValue={revenue.notes ?? ""} className={textareaClassName} /></Field>
+                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                      </form>
+                      <form action={deleteRevenue}>
+                        <input type="hidden" name="id" value={revenue.id} />
+                        <SubmitButton label="Eliminar ingreso" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
+                  </details>
                 </div>
               ))
             )}

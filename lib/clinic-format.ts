@@ -43,6 +43,26 @@ export function formatDate(value: Date | null | undefined) {
   return dateFormatter.format(value);
 }
 
+function padNumber(value: number) {
+  return value.toString().padStart(2, "0");
+}
+
+export function formatDateInput(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return `${value.getFullYear()}-${padNumber(value.getMonth() + 1)}-${padNumber(value.getDate())}`;
+}
+
+export function formatDateTimeInput(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return `${formatDateInput(value)}T${padNumber(value.getHours())}:${padNumber(value.getMinutes())}`;
+}
+
 export function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }

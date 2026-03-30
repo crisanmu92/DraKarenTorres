@@ -1,6 +1,6 @@
 import { SaleItemType } from "@prisma/client";
 
-import { createSaleItem } from "@/app/actions";
+import { createSaleItem, deleteSaleItem, updateSaleItem } from "@/app/actions";
 import {
   EmptyState,
   Field,
@@ -36,8 +36,9 @@ export default async function ServicesPage({
     id: string;
     name: string;
     type: SaleItemType;
+    description: string | null;
     unitPrice: unknown;
-    product: { name: string } | null;
+    product: { id: string; name: string } | null;
   }> = [];
   let pageError: string | null = null;
 
@@ -122,6 +123,43 @@ export default async function ServicesPage({
                     {saleItemTypeLabels[item.type]} · {formatMoney(item.unitPrice)}
                     {item.product ? ` · ${item.product.name}` : ""}
                   </p>
+                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Editar o eliminar
+                    </summary>
+                    <div className="mt-4 grid gap-4">
+                      <form action={updateSaleItem} className="grid gap-4">
+                        <input type="hidden" name="id" value={item.id} />
+                        <div className={formGridClassName}>
+                          <Field label="Nombre"><input name="name" defaultValue={item.name} className={inputClassName} required /></Field>
+                          <Field label="Tipo">
+                            <select name="type" defaultValue={item.type} className={inputClassName} required>
+                              {Object.values(SaleItemType).map((type) => (
+                                <option key={type} value={type}>{saleItemTypeLabels[type]}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Precio">
+                            <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={String(item.unitPrice)} className={inputClassName} required />
+                          </Field>
+                          <Field label="Producto relacionado">
+                            <select name="productId" defaultValue={item.product?.id ?? ""} className={inputClassName}>
+                              <option value="">Sin producto relacionado</option>
+                              {products.map((product) => (
+                                <option key={product.id} value={product.id}>{product.name}</option>
+                              ))}
+                            </select>
+                          </Field>
+                        </div>
+                        <Field label="Descripcion"><textarea name="description" defaultValue={item.description ?? ""} className={textareaClassName} /></Field>
+                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                      </form>
+                      <form action={deleteSaleItem}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <SubmitButton label="Eliminar servicio" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
+                  </details>
                 </div>
               ))
             )}

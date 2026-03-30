@@ -37,6 +37,13 @@ export function ClinicNavigation() {
           </div>
         </details>
       ))}
+
+      <a
+        href="/export"
+        className="rounded-[24px] border border-[#c9a977]/30 bg-[#f4e6d1] px-4 py-4 text-base font-semibold leading-6 text-[#3f2d1f]"
+      >
+        Descargar Excel
+      </a>
     </div>
   );
 }

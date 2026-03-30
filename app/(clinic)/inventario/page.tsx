@@ -1,9 +1,9 @@
 import { InventoryMovementType } from "@prisma/client";
 
-import { createInventoryMovement } from "@/app/actions";
+import { createInventoryMovement, deleteInventoryMovement, updateInventoryMovement } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateTimeInput, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 const inventoryMovementLabels: Record<InventoryMovementType, string> = {
@@ -28,6 +28,8 @@ export default async function InventoryPage() {
     occurredAt: Date;
     type: InventoryMovementType;
     quantity: unknown;
+    reason: string | null;
+    productId: string;
     product: { name: string };
   }> = [];
   let pageError: string | null = null;
@@ -113,6 +115,42 @@ export default async function InventoryPage() {
                     <p className="text-sm font-semibold text-(--color-ink)">{toNumber(movement.quantity)}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(movement.occurredAt)}</p>
+                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Editar o eliminar
+                    </summary>
+                    <div className="mt-4 grid gap-4">
+                      <form action={updateInventoryMovement} className="grid gap-4">
+                        <input type="hidden" name="id" value={movement.id} />
+                        <div className={formGridClassName}>
+                          <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeInput(movement.occurredAt)} className={inputClassName} /></Field>
+                          <Field label="Tipo">
+                            <select name="type" defaultValue={movement.type} className={inputClassName} required>
+                              {Object.values(InventoryMovementType).map((type) => (
+                                <option key={type} value={type}>{inventoryMovementLabels[type]}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Producto">
+                            <select name="productId" defaultValue={movement.productId} className={inputClassName} required>
+                              {products.map((product) => (
+                                <option key={product.id} value={product.id}>
+                                  {product.name}{product.sku ? ` · ${product.sku}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Cantidad"><input name="quantity" type="number" step="0.01" min="0" defaultValue={String(movement.quantity)} className={inputClassName} required /></Field>
+                        </div>
+                        <Field label="Motivo o detalle"><textarea name="reason" defaultValue={movement.reason ?? ""} className={textareaClassName} /></Field>
+                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                      </form>
+                      <form action={deleteInventoryMovement}>
+                        <input type="hidden" name="id" value={movement.id} />
+                        <SubmitButton label="Eliminar movimiento" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
+                  </details>
                 </div>
               ))
             )}

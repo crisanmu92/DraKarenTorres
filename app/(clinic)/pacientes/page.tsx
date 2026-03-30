@@ -1,7 +1,7 @@
-import { createPatient } from "@/app/actions";
+import { createPatient, deletePatient, updatePatient } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate } from "@/lib/clinic-format";
+import { formatDate, formatDateInput } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +78,34 @@ export default async function PatientsPage({
                   <p className="font-semibold text-(--color-ink)">{patient.firstName} {patient.lastName}</p>
                   <p className="mt-1 text-sm text-(--color-muted)">{patient.identification} · {patient.phone}</p>
                   <p className="mt-2 text-sm text-(--color-muted)">Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
+                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Editar o eliminar
+                    </summary>
+                    <div className="mt-4 grid gap-4">
+                      <form action={updatePatient} className="grid gap-4">
+                        <input type="hidden" name="id" value={patient.id} />
+                        <div className={formGridClassName}>
+                          <Field label="Nombres"><input name="firstName" defaultValue={patient.firstName} className={inputClassName} required /></Field>
+                          <Field label="Apellidos"><input name="lastName" defaultValue={patient.lastName} className={inputClassName} required /></Field>
+                          <Field label="Identificacion"><input name="identification" defaultValue={patient.identification} className={inputClassName} required /></Field>
+                          <Field label="Telefono"><input name="phone" defaultValue={patient.phone} className={inputClassName} required /></Field>
+                          <Field label="Correo"><input name="email" type="email" defaultValue={patient.email ?? ""} className={inputClassName} /></Field>
+                          <Field label="Fecha de nacimiento"><input name="birthDate" type="date" defaultValue={formatDateInput(patient.birthDate)} className={inputClassName} /></Field>
+                          <Field label="Ultima visita"><input name="lastVisitAt" type="date" defaultValue={formatDateInput(patient.lastVisitAt)} className={inputClassName} /></Field>
+                          <Field label="Proximo seguimiento"><input name="nextVisitAt" type="date" defaultValue={formatDateInput(patient.nextVisitAt)} className={inputClassName} /></Field>
+                        </div>
+                        <Field label="Alergias"><textarea name="allergies" defaultValue={patient.allergies ?? ""} className={textareaClassName} /></Field>
+                        <Field label="Historial o servicios previos"><textarea name="previousTreatments" defaultValue={patient.previousTreatments ?? ""} className={textareaClassName} /></Field>
+                        <Field label="Notas importantes"><textarea name="importantNotes" defaultValue={patient.importantNotes ?? ""} className={textareaClassName} /></Field>
+                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                      </form>
+                      <form action={deletePatient}>
+                        <input type="hidden" name="id" value={patient.id} />
+                        <SubmitButton label="Eliminar cliente" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
+                  </details>
                 </div>
               ))
             )}

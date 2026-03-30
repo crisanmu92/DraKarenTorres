@@ -1,9 +1,9 @@
 import { ExpenseCategory } from "@prisma/client";
 
-import { createExpense } from "@/app/actions";
+import { createExpense, deleteExpense, updateExpense } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { expenseCategoryLabels, formatDate, formatMoney } from "@/lib/clinic-format";
+import { expenseCategoryLabels, formatDate, formatDateTimeInput, formatMoney } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +85,34 @@ export default async function ExpensesPage({
                     <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(expense.amount)}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(expense.occurredAt)}</p>
+                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Editar o eliminar
+                    </summary>
+                    <div className="mt-4 grid gap-4">
+                      <form action={updateExpense} className="grid gap-4">
+                        <input type="hidden" name="id" value={expense.id} />
+                        <div className={formGridClassName}>
+                          <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeInput(expense.occurredAt)} className={inputClassName} /></Field>
+                          <Field label="Monto"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(expense.amount)} className={inputClassName} required /></Field>
+                          <Field label="Categoria">
+                            <select name="category" defaultValue={expense.category} className={inputClassName} required>
+                              {Object.values(ExpenseCategory).map((category) => (
+                                <option key={category} value={category}>{expenseCategoryLabels[category]}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Descripcion"><input name="description" defaultValue={expense.description} className={inputClassName} required /></Field>
+                        </div>
+                        <Field label="Notas"><textarea name="notes" defaultValue={expense.notes ?? ""} className={textareaClassName} /></Field>
+                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                      </form>
+                      <form action={deleteExpense}>
+                        <input type="hidden" name="id" value={expense.id} />
+                        <SubmitButton label="Eliminar egreso" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
+                  </details>
                 </div>
               ))
             )}
