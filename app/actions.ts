@@ -189,26 +189,39 @@ export async function createSupplier(formData: FormData) {
 }
 
 export async function createProduct(formData: FormData) {
-  await prisma.product.create({
-    data: {
-      name: getRequiredString(formData, "name"),
-      description: getOptionalString(formData, "description"),
-      sku: getOptionalString(formData, "sku"),
-      lotNumber: getRequiredString(formData, "lotNumber"),
-      costPrice: getOptionalDecimal(formData, "costPrice"),
-      stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
-      minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
-      unit: getEnumValue(
-        getRequiredString(formData, "unit"),
-        inventoryUnits,
-        "unit",
-      ),
-      expiresAt: getOptionalDate(formData, "expiresAt"),
-      supplierId: getRequiredString(formData, "supplierId"),
-    },
-  });
+  const redirectTo = getRedirectTarget(formData, "/inventario");
 
-  finishMutation();
+  try {
+    await prisma.product.create({
+      data: {
+        name: getRequiredString(formData, "name"),
+        description: getOptionalString(formData, "description"),
+        sku: getOptionalString(formData, "sku"),
+        lotNumber: getRequiredString(formData, "lotNumber"),
+        costPrice: getOptionalDecimal(formData, "costPrice"),
+        stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
+        minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
+        unit: getEnumValue(
+          getRequiredString(formData, "unit"),
+          inventoryUnits,
+          "unit",
+        ),
+        expiresAt: getOptionalDate(formData, "expiresAt"),
+        supplierId: getRequiredString(formData, "supplierId"),
+      },
+    });
+
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Compra guardada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar la compra."),
+    });
+  }
 }
 
 export async function createSaleItem(formData: FormData) {
@@ -398,39 +411,64 @@ export async function deleteSupplier(formData: FormData) {
 }
 
 export async function updateProduct(formData: FormData) {
-  await prisma.product.update({
-    where: { id: getId(formData) },
-    data: {
-      name: getRequiredString(formData, "name"),
-      description: getOptionalString(formData, "description"),
-      sku: getOptionalString(formData, "sku"),
-      lotNumber: getRequiredString(formData, "lotNumber"),
-      costPrice: getOptionalDecimal(formData, "costPrice"),
-      stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
-      minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
-      unit: getEnumValue(getRequiredString(formData, "unit"), inventoryUnits, "unit"),
-      expiresAt: getOptionalDate(formData, "expiresAt"),
-      supplierId: getRequiredString(formData, "supplierId"),
-      isActive: getRequiredString(formData, "isActive") === "true",
-    },
-  });
+  const redirectTo = getRedirectTarget(formData, "/inventario");
 
-  finishMutation();
+  try {
+    await prisma.product.update({
+      where: { id: getId(formData) },
+      data: {
+        name: getRequiredString(formData, "name"),
+        description: getOptionalString(formData, "description"),
+        sku: getOptionalString(formData, "sku"),
+        lotNumber: getRequiredString(formData, "lotNumber"),
+        costPrice: getOptionalDecimal(formData, "costPrice"),
+        stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
+        minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
+        unit: getEnumValue(getRequiredString(formData, "unit"), inventoryUnits, "unit"),
+        expiresAt: getOptionalDate(formData, "expiresAt"),
+        supplierId: getRequiredString(formData, "supplierId"),
+        isActive: getRequiredString(formData, "isActive") === "true",
+      },
+    });
+
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Compra actualizada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar la compra."),
+    });
+  }
 }
 
 export async function deleteProduct(formData: FormData) {
   const id = getId(formData);
+  const redirectTo = getRedirectTarget(formData, "/inventario");
 
-  await prisma.$transaction([
-    prisma.inventoryMovement.deleteMany({ where: { productId: id } }),
-    prisma.saleItem.updateMany({
-      where: { productId: id },
-      data: { productId: null },
-    }),
-    prisma.product.delete({ where: { id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.inventoryMovement.deleteMany({ where: { productId: id } }),
+      prisma.saleItem.updateMany({
+        where: { productId: id },
+        data: { productId: null },
+      }),
+      prisma.product.delete({ where: { id } }),
+    ]);
 
-  finishMutation();
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Compra eliminada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo eliminar la compra."),
+    });
+  }
 }
 
 export async function updateSaleItem(formData: FormData) {

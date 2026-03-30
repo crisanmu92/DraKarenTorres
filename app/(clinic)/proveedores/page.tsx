@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { createSupplier, deleteSupplier, updateSupplier } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -27,7 +29,7 @@ export default async function SuppliersPage() {
       <SectionHeading
         eyebrow="Abastecimiento"
         title="Registro de proveedores"
-        description="Aqui solo registras laboratorios o distribuidores. Luego, desde inventario, agregas lo que le compraste a cada proveedor."
+        description="Aqui registras laboratorios o distribuidores. Entra a cada proveedor para cargar lo que le compraste."
       />
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
@@ -77,9 +79,9 @@ export default async function SuppliersPage() {
         </FormCard>
 
         <FormCard
-          eyebrow="Paso siguiente"
+          eyebrow="Directorio"
           title="Proveedores registrados"
-          description="Cuando ya exista el proveedor, usa el boton de compra para ir a inventario y registrar lo que le compraste."
+          description="Haz click en un proveedor para abrir su ficha y registrar ahi mismo los productos que le compras."
         >
           <div className="mt-6 grid gap-3">
             {suppliers.length === 0 ? <EmptyState>Aun no hay proveedores registrados.</EmptyState> : suppliers.map((supplier) => (
@@ -91,12 +93,12 @@ export default async function SuppliersPage() {
                       {supplier.commercialAdvisor ?? "Sin asesor"} · {supplier.phone ?? "Sin telefono"}
                     </p>
                   </div>
-                  <a
-                    href={`/inventario?supplierId=${supplier.id}`}
+                  <Link
+                    href={`/proveedores/${supplier.id}`}
                     className="inline-flex items-center justify-center rounded-full bg-[#2f5be7] px-5 py-3 text-sm font-semibold text-white"
                   >
-                    Agregar compra
-                  </a>
+                    Ver proveedor
+                  </Link>
                 </div>
               </div>
             ))}

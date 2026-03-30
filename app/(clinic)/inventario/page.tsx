@@ -1,6 +1,6 @@
 import { InventoryMovementType, InventoryUnit } from "@prisma/client";
 
-import { createInventoryMovement, createProduct, deleteInventoryMovement, updateInventoryMovement } from "@/app/actions";
+import { createInventoryMovement, deleteInventoryMovement, updateInventoryMovement } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, sectionCardClassName, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatDateTimeInput, formatMoney, toNumber } from "@/lib/clinic-format";
@@ -31,12 +31,6 @@ export default async function InventoryPage({
 }: {
   searchParams?: Promise<{ supplierId?: string }>;
 }) {
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const selectedSupplierId = resolvedSearchParams?.supplierId ?? "";
-  let suppliers: Array<{
-    id: string;
-    companyName: string;
-  }> = [];
   let products: Array<{
     id: string;
     name: string;
@@ -56,11 +50,7 @@ export default async function InventoryPage({
   let pageError: string | null = null;
 
   try {
-    [suppliers, products, movements] = await Promise.all([
-      prisma.supplier.findMany({
-        orderBy: [{ companyName: "asc" }],
-        select: { id: true, companyName: true },
-      }),
+    [products, movements] = await Promise.all([
       prisma.product.findMany({
         orderBy: [{ name: "asc" }],
         select: { id: true, name: true, sku: true, costPrice: true, supplier: { select: { companyName: true } } },
@@ -79,53 +69,13 @@ export default async function InventoryPage({
     <>
       <SectionHeading
         eyebrow="Inventario"
-        title="Compras e inventario"
-        description="Primero registra lo que le compraste a un proveedor y luego controla las entradas, salidas y ajustes del inventario."
+        title="Inventario y movimientos"
+        description="Las compras nuevas se registran dentro de cada proveedor. Aqui controlas los productos ya cargados y sus movimientos."
       />
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <FormCard
-          eyebrow="Compra nueva"
-          title="Agregar producto comprado"
-          description="Selecciona el proveedor y registra el producto o insumo que acabas de comprar."
-        >
-          <form action={createProduct} className="grid gap-4">
-            <div className={formGridClassName}>
-              <Field label="Proveedor">
-                <select name="supplierId" className={inputClassName} defaultValue={selectedSupplierId} required>
-                  <option value="">Selecciona un proveedor</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.companyName}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
-              <Field label="SKU"><input name="sku" className={inputClassName} /></Field>
-              <Field label="Lote"><input name="lotNumber" className={inputClassName} required /></Field>
-              <Field label="Costo unitario">
-                <input name="costPrice" type="number" step="0.01" min="0" className={inputClassName} />
-              </Field>
-              <Field label="Cantidad comprada"><input name="stockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-              <Field label="Stock minimo"><input name="minStockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-              <Field label="Unidad">
-                <select name="unit" className={inputClassName} defaultValue="UNIT" required>
-                  {Object.values(InventoryUnit).map((unit) => (
-                    <option key={unit} value={unit}>{inventoryUnitLabels[unit]}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Vence"><input name="expiresAt" type="date" className={inputClassName} /></Field>
-            </div>
-            <Field label="Descripcion"><textarea name="description" className={textareaClassName} /></Field>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-(--color-muted)">Una vez guardado el producto, ya puedes moverlo dentro del inventario.</p>
-              <SubmitButton label="Guardar compra" pendingLabel="Guardando compra..." />
-            </div>
-          </form>
-        </FormCard>
-
         <FormCard
           eyebrow="Nuevo movimiento"
           title="Registrar movimiento"
