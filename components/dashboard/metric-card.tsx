@@ -13,8 +13,8 @@ export function MetricCard({
 }: MetricCardProps) {
   const toneClassName = {
     neutral: "border-[var(--color-line)] bg-white/82 text-[var(--color-ink)]",
-    positive: "border-emerald-200 bg-emerald-50 text-emerald-950",
-    negative: "border-rose-200 bg-rose-50 text-rose-950",
+    positive: "border-[#d7cab8] bg-[#f8f1e8] text-[var(--color-ink)]",
+    negative: "border-[#dbc8bf] bg-[#f6eee9] text-[var(--color-ink)]",
   }[tone];
 
   return (

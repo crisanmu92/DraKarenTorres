@@ -20,11 +20,11 @@ export function SubmitButton({
   const { pending } = useFormStatus();
   const className = {
     primary:
-      "bg-[#23302b] text-[#f8f3ec]",
+      "bg-[#181311] text-[#fffdf9]",
     secondary:
-      "border border-(--color-line) bg-white text-(--color-ink)",
+      "border border-(--color-line) bg-[#fffdfa] text-(--color-ink)",
     danger:
-      "bg-rose-700 text-white",
+      "bg-[#8d5a48] text-white",
   }[variant];
 
   return (

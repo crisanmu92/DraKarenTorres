@@ -60,7 +60,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-CO", {
 const sectionCardClassName =
   "rounded-4xl border border-(--color-line) bg-white/88 p-6 shadow-(--shadow-card)";
 const inputClassName =
-  "w-full rounded-2xl border border-(--color-line) bg-white px-4 py-3 text-sm text-(--color-ink) outline-none transition focus:border-[#23302b]";
+  "w-full rounded-2xl border border-(--color-line) bg-[#fffdfa] px-4 py-3 text-sm text-(--color-ink) outline-none transition focus:border-[#171311]";
 const textareaClassName = `${inputClassName} min-h-28 resize-y`;
 const formGridClassName = "grid gap-3 sm:grid-cols-2";
 
@@ -560,10 +560,10 @@ export default async function Home() {
 
   return (
     <main className="relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 -z-10 h-136 bg-[radial-gradient(circle_at_top,rgba(199,182,145,0.3),transparent_48%),linear-gradient(180deg,rgba(248,244,238,0.96),rgba(244,239,232,0.82))]" />
+      <div className="absolute inset-x-0 top-0 -z-10 h-136 bg-[radial-gradient(circle_at_top,rgba(214,193,167,0.28),transparent_48%),linear-gradient(180deg,rgba(251,247,242,0.98),rgba(246,238,228,0.88))]" />
 
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <header className="grid gap-6 rounded-[36px] border border-white/70 bg-white/72 p-7 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.5fr_0.9fr] lg:p-10">
+        <header className="grid gap-6 rounded-[36px] border border-white/80 bg-white/84 p-7 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.5fr_0.9fr] lg:p-10">
           <div className="space-y-5">
             <p className="text-xs font-semibold uppercase tracking-[0.36em] text-(--color-muted)">
               Consultorio de Medicina Estetica
@@ -651,26 +651,55 @@ export default async function Home() {
             <div className="sticky top-6 grid gap-4">
               <article className="rounded-4xl border border-(--color-line) bg-white/90 p-5 shadow-(--shadow-card)">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
-                  Navegacion
+                  Menu
                 </p>
-                <div className="mt-4 grid gap-2">
-                  {navigationLinks.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      className="rounded-2xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3 text-sm font-semibold text-(--color-ink)"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+                <div className="mt-4 grid gap-3">
+                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3" open>
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Pacientes
+                    </summary>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      <a href="#pacientes" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Agregar pacientes</a>
+                      <a href="#ingresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Registrar ingresos</a>
+                    </div>
+                  </details>
+                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Caja y gastos
+                    </summary>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      <a href="#ingresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Caja diaria</a>
+                      <a href="#egresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Gastos</a>
+                      <a href="#finanzas" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Utilidades</a>
+                    </div>
+                  </details>
+                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Proveedores y materia prima
+                    </summary>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      <a href="#proveedores" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Proveedores</a>
+                      <a href="#productos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Materia prima</a>
+                      <a href="#inventario" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Movimientos</a>
+                    </div>
+                  </details>
+                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                      Catalogo
+                    </summary>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      <a href="#precios" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Items de venta</a>
+                      <a href="#resumen" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Resumen general</a>
+                    </div>
+                  </details>
                 </div>
               </article>
 
-              <article className="rounded-4xl border border-(--color-line) bg-[#23302b] p-5 text-[#f8f3ec] shadow-(--shadow-card)">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/56">
+              <article className="rounded-4xl border border-(--color-line) bg-[#f3eadf] p-5 text-(--color-ink) shadow-(--shadow-card)">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
                   Tu foco hoy
                 </p>
-                <div className="mt-4 grid gap-3 text-sm leading-6 text-white/80">
+                <div className="mt-4 grid gap-3 text-sm leading-6 text-(--color-ink)">
                   <p>1. Registra pacientes y servicios primero.</p>
                   <p>2. Lleva ingresos y egresos todos los dias.</p>
                   <p>3. Revisa inventario y seguimientos antes de cerrar jornada.</p>
@@ -795,7 +824,7 @@ export default async function Home() {
                     </div>
                     <div className="h-2 rounded-full bg-[var(--color-panel)]">
                       <div
-                        className="h-2 rounded-full bg-[#23302b]"
+                        className="h-2 rounded-full bg-[#171311]"
                         style={{ width: `${Math.min(item.share, 100)}%` }}
                       />
                     </div>
@@ -855,20 +884,20 @@ export default async function Home() {
             </div>
           </article>
 
-          <article className="rounded-4xl border border-(--color-line) bg-[#23302b] p-7 text-[#f8f3ec] shadow-(--shadow-card)">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/56">
+          <article className="rounded-4xl border border-(--color-line) bg-[#f4ebe1] p-7 text-(--color-ink) shadow-(--shadow-card)">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
               Siguiente paso tecnico
             </p>
             <h2 className="mt-4 font-display text-4xl leading-none tracking-[-0.03em]">
               Operar con captura estructurada.
             </h2>
-            <p className="mt-4 text-sm leading-7 text-white/72">
+            <p className="mt-4 text-sm leading-7 text-(--color-muted)">
               Esta version ya permite empezar a cargar la operacion real del consultorio. La
               siguiente capa razonable es autenticacion, edicion de registros y filtros por fecha.
             </p>
-            <div className="mt-8 rounded-3xl border border-white/10 bg-white/6 p-5">
+            <div className="mt-8 rounded-3xl border border-(--color-line) bg-white/70 p-5">
               <p className="text-sm font-semibold">Prioridades siguientes</p>
-              <div className="mt-3 space-y-2 text-sm text-white/72">
+              <div className="mt-3 space-y-2 text-sm text-(--color-muted)">
                 <p>Acceso privado para el equipo.</p>
                 <p>Edicion y anulacion de registros.</p>
                 <p>Agenda, historia clinica y reportes por rango de fechas.</p>
@@ -1430,7 +1459,7 @@ export default async function Home() {
                               {revenue.saleItem.name} · {paymentMethodLabels[revenue.paymentMethod]}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-emerald-700">
+                          <p className="text-sm font-semibold text-(--color-ink)">
                             {formatMoney(revenue.amount)}
                           </p>
                         </div>
@@ -1546,7 +1575,7 @@ export default async function Home() {
                               {expenseCategoryLabels[expense.category]}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-rose-700">
+                          <p className="text-sm font-semibold text-(--color-ink)">
                             {formatMoney(expense.amount)}
                           </p>
                         </div>
