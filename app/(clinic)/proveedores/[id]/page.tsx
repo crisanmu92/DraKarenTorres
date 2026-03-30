@@ -14,7 +14,7 @@ import {
   textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 const inventoryUnitLabels: Record<InventoryUnit, string> = {
@@ -49,11 +49,8 @@ export default async function SupplierDetailPage({
       id: string;
       name: string;
       description: string | null;
-      sku: string | null;
-      lotNumber: string;
       costPrice: unknown;
       stockQuantity: unknown;
-      minStockQuantity: unknown;
       unit: InventoryUnit;
       expiresAt: Date | null;
       isActive: boolean;
@@ -77,11 +74,8 @@ export default async function SupplierDetailPage({
             id: true,
             name: true,
             description: true,
-            sku: true,
-            lotNumber: true,
             costPrice: true,
             stockQuantity: true,
-            minStockQuantity: true,
             unit: true,
             expiresAt: true,
             isActive: true,
@@ -156,8 +150,6 @@ export default async function SupplierDetailPage({
                 <input type="hidden" name="redirectTo" value={`/proveedores/${supplier.id}`} />
                 <div className={formGridClassName}>
                   <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
-                  <Field label="Sku"><input name="sku" className={inputClassName} /></Field>
-                  <Field label="Lote"><input name="lotNumber" className={inputClassName} required /></Field>
                   <Field label="Unidad" hint="Usa Jeringa, Ml, Mg, Caja, Vial o Unidad segun la compra.">
                     <select name="unit" className={inputClassName} defaultValue="UNIT" required>
                       {Object.values(InventoryUnit).map((unit) => (
@@ -167,9 +159,12 @@ export default async function SupplierDetailPage({
                       ))}
                     </select>
                   </Field>
-                  <Field label="Cantidad inicial"><input name="stockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-                  <Field label="Stock minimo"><input name="minStockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-                  <Field label="Costo unitario"><input name="costPrice" type="number" step="0.01" min="0" className={inputClassName} /></Field>
+                  <Field label="Cantidad comprada" hint="Si compras una caja, pon aqui cuantas unidades, ml o mg trae en total.">
+                    <input name="stockQuantity" type="number" step="0.01" min="0.01" className={inputClassName} required />
+                  </Field>
+                  <Field label="Valor total pagado" hint="El sistema calcula el costo unitario automaticamente con base en la cantidad.">
+                    <input name="totalPurchaseAmount" type="number" step="0.01" min="0" className={inputClassName} required />
+                  </Field>
                   <Field label="Vence"><input name="expiresAt" type="date" className={inputClassName} /></Field>
                 </div>
                 <Field label="Descripcion" hint="Aqui puedes dejar el peso, los ml, la referencia o cualquier detalle adicional de la presentacion.">
@@ -195,12 +190,11 @@ export default async function SupplierDetailPage({
                       <div>
                         <p className="font-semibold text-(--color-ink)">{product.name}</p>
                         <p className="mt-1 text-sm text-(--color-muted)">
-                          {inventoryUnitLabels[product.unit]} · stock {toNumber(product.stockQuantity)} · minimo {toNumber(product.minStockQuantity)}
+                          {inventoryUnitLabels[product.unit]} · cantidad {toNumber(product.stockQuantity)}
                         </p>
                         <p className="mt-1 text-sm text-(--color-muted)">
-                          Lote {product.lotNumber}
-                          {product.sku ? ` · SKU ${product.sku}` : ""}
-                          {toNumber(product.costPrice) > 0 ? ` · ${Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(toNumber(product.costPrice))}` : ""}
+                          {toNumber(product.costPrice) > 0 ? `Costo unitario ${formatMoney(product.costPrice)}` : "Costo unitario sin registrar"}
+                          {toNumber(product.costPrice) > 0 ? ` · Valor total ${formatMoney(toNumber(product.costPrice) * toNumber(product.stockQuantity))}` : ""}
                         </p>
                         <p className="mt-1 text-sm text-(--color-muted)">
                           {product.expiresAt ? `Vence ${formatDate(product.expiresAt)}` : "Sin fecha de vencimiento"}
@@ -227,8 +221,6 @@ export default async function SupplierDetailPage({
                           <input type="hidden" name="redirectTo" value={`/proveedores/${supplier.id}`} />
                           <div className={formGridClassName}>
                             <Field label="Nombre"><input name="name" defaultValue={product.name} className={inputClassName} required /></Field>
-                            <Field label="Sku"><input name="sku" defaultValue={product.sku ?? ""} className={inputClassName} /></Field>
-                            <Field label="Lote"><input name="lotNumber" defaultValue={product.lotNumber} className={inputClassName} required /></Field>
                             <Field label="Unidad">
                               <select name="unit" defaultValue={product.unit} className={inputClassName} required>
                                 {Object.values(InventoryUnit).map((unit) => (
@@ -238,14 +230,21 @@ export default async function SupplierDetailPage({
                                 ))}
                               </select>
                             </Field>
-                            <Field label="Stock actual"><input name="stockQuantity" type="number" step="0.01" min="0" defaultValue={toNumber(product.stockQuantity)} className={inputClassName} required /></Field>
-                            <Field label="Stock minimo"><input name="minStockQuantity" type="number" step="0.01" min="0" defaultValue={toNumber(product.minStockQuantity)} className={inputClassName} required /></Field>
-                            <Field label="Costo unitario"><input name="costPrice" type="number" step="0.01" min="0" defaultValue={toNumber(product.costPrice) || ""} className={inputClassName} /></Field>
+                            <Field label="Cantidad actual"><input name="stockQuantity" type="number" step="0.01" min="0.01" defaultValue={toNumber(product.stockQuantity)} className={inputClassName} required /></Field>
+                            <Field label="Valor total" hint="El sistema vuelve a calcular el costo unitario con esta cantidad y este valor total.">
+                              <input
+                                name="totalPurchaseAmount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                defaultValue={toNumber(product.costPrice) > 0 ? (toNumber(product.costPrice) * toNumber(product.stockQuantity)).toFixed(2) : ""}
+                                className={inputClassName}
+                                required
+                              />
+                            </Field>
                             <Field label="Vence"><input name="expiresAt" type="date" defaultValue={product.expiresAt ? product.expiresAt.toISOString().slice(0, 10) : ""} className={inputClassName} /></Field>
                           </div>
                           <Field label="Descripcion"><textarea name="description" defaultValue={product.description ?? ""} className={textareaClassName} /></Field>
-                          <input type="hidden" name="supplierId" value={supplier.id} />
-                          <input type="hidden" name="isActive" value={product.isActive ? "true" : "false"} />
                           <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
                         </form>
                         <form action={deleteProduct}>

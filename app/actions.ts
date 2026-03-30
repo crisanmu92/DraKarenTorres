@@ -84,6 +84,10 @@ function getOptionalDate(formData: FormData, key: string) {
   return date;
 }
 
+function getAutoLotNumber() {
+  return `AUTO-${Date.now()}`;
+}
+
 function getEnumValue<T extends string>(raw: string, values: readonly T[], key: string): T {
   if (!values.includes(raw as T)) {
     throw new Error(`El campo ${key} tiene un valor invalido.`);
@@ -203,6 +207,17 @@ export async function createSupplier(formData: FormData) {
 export async function createProduct(formData: FormData) {
   const redirectTo = getRedirectTarget(formData, "/inventario");
   const stockQuantity = getRequiredDecimal(formData, "stockQuantity");
+  const totalPurchaseAmount = getRequiredDecimal(formData, "totalPurchaseAmount");
+
+  if (stockQuantity.lte(0)) {
+    throw new Error("La cantidad comprada debe ser mayor a cero.");
+  }
+
+  if (totalPurchaseAmount.lt(0)) {
+    throw new Error("El valor total no puede ser negativo.");
+  }
+
+  const costPrice = totalPurchaseAmount.div(stockQuantity);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -210,11 +225,11 @@ export async function createProduct(formData: FormData) {
         data: {
           name: getRequiredString(formData, "name"),
           description: getOptionalString(formData, "description"),
-          sku: getOptionalString(formData, "sku"),
-          lotNumber: getRequiredString(formData, "lotNumber"),
-          costPrice: getOptionalDecimal(formData, "costPrice"),
+          sku: undefined,
+          lotNumber: getAutoLotNumber(),
+          costPrice,
           stockQuantity,
-          minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
+          minStockQuantity: new Prisma.Decimal(0),
           unit: getEnumValue(
             getRequiredString(formData, "unit"),
             inventoryUnits,
@@ -439,6 +454,31 @@ export async function deleteSupplier(formData: FormData) {
 
 export async function updateProduct(formData: FormData) {
   const redirectTo = getRedirectTarget(formData, "/inventario");
+  const stockQuantity = getRequiredDecimal(formData, "stockQuantity");
+  const totalPurchaseAmount = getRequiredDecimal(formData, "totalPurchaseAmount");
+
+  if (stockQuantity.lte(0)) {
+    throw new Error("La cantidad debe ser mayor a cero.");
+  }
+
+  if (totalPurchaseAmount.lt(0)) {
+    throw new Error("El valor total no puede ser negativo.");
+  }
+
+  const existingProduct = await prisma.product.findUnique({
+    where: { id: getId(formData) },
+    select: {
+      sku: true,
+      lotNumber: true,
+      minStockQuantity: true,
+      isActive: true,
+      supplierId: true,
+    },
+  });
+
+  if (!existingProduct) {
+    throw new Error("No se encontro el producto que quieres actualizar.");
+  }
 
   try {
     await prisma.product.update({
@@ -446,15 +486,15 @@ export async function updateProduct(formData: FormData) {
       data: {
         name: getRequiredString(formData, "name"),
         description: getOptionalString(formData, "description"),
-        sku: getOptionalString(formData, "sku"),
-        lotNumber: getRequiredString(formData, "lotNumber"),
-        costPrice: getOptionalDecimal(formData, "costPrice"),
-        stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
-        minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
+        sku: existingProduct.sku,
+        lotNumber: existingProduct.lotNumber,
+        costPrice: totalPurchaseAmount.div(stockQuantity),
+        stockQuantity,
+        minStockQuantity: existingProduct.minStockQuantity,
         unit: getEnumValue(getRequiredString(formData, "unit"), inventoryUnits, "unit"),
         expiresAt: getOptionalDate(formData, "expiresAt"),
-        supplierId: getRequiredString(formData, "supplierId"),
-        isActive: getRequiredString(formData, "isActive") === "true",
+        supplierId: existingProduct.supplierId,
+        isActive: existingProduct.isActive,
       },
     });
 
