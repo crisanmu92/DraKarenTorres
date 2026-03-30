@@ -9,16 +9,27 @@ export const dynamic = "force-dynamic";
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; success?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; q?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const query = resolvedSearchParams?.q?.trim() ?? "";
   let patients: Awaited<ReturnType<typeof prisma.patient.findMany>> = [];
   let pageError: string | null = null;
 
   try {
     patients = await prisma.patient.findMany({
+      where: query
+        ? {
+            OR: [
+              { firstName: { contains: query, mode: "insensitive" } },
+              { lastName: { contains: query, mode: "insensitive" } },
+              { identification: { contains: query, mode: "insensitive" } },
+              { phone: { contains: query, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
       orderBy: [{ createdAt: "desc" }],
-      take: 12,
+      take: 24,
     });
   } catch {
     pageError = "No se pudo cargar la base de pacientes en este momento.";
@@ -67,11 +78,35 @@ export default async function PatientsPage({
         <FormCard
           eyebrow="Listado"
           title="Clientes recientes"
-          description="Los ultimos clientes creados aparecen aqui para consulta rapida."
+          description="Busca por nombre, apellido, identificacion o telefono para encontrar clientes mas rapido."
         >
+          <form method="GET" className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+            <input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="Buscar paciente..."
+              className={inputClassName}
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center rounded-full bg-[#2f5be7] px-5 py-3 text-sm font-semibold text-white"
+            >
+              Buscar
+            </button>
+            <a
+              href="/pacientes"
+              className="inline-flex items-center justify-center rounded-full border border-(--color-line) bg-white px-5 py-3 text-sm font-semibold text-(--color-ink)"
+            >
+              Limpiar
+            </a>
+          </form>
+
           <div className="grid gap-3">
             {patients.length === 0 ? (
-              <EmptyState>Aun no hay clientes registrados.</EmptyState>
+              <EmptyState>
+                {query ? "No se encontraron pacientes con esa busqueda." : "Aun no hay clientes registrados."}
+              </EmptyState>
             ) : (
               patients.map((patient) => (
                 <div key={patient.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
