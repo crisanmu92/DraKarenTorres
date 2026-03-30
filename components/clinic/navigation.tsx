@@ -1,18 +1,13 @@
 const navigationSections = [
   {
-    title: "Dashboard",
+    title: "Opciones",
     defaultOpen: true,
     links: [
-      { href: "/", label: "Resumen general" },
-      { href: "/pacientes", label: "Clientes" },
-    ],
-  },
-  {
-    title: "Movimientos financieros",
-    links: [
-      { href: "/ingresos", label: "Ingresos" },
-      { href: "/egresos", label: "Egresos" },
-      { href: "/reportes", label: "Reportes" },
+      { href: "/pacientes", label: "Registro de pacientes" },
+      { href: "/proveedores", label: "Registro de proveedores" },
+      { href: "/inventario", label: "Inventario" },
+      { href: "/servicios", label: "Servicios" },
+      { href: "/movimientos", label: "Movimientos" },
     ],
   },
 ];

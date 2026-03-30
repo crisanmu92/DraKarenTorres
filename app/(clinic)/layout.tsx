@@ -12,10 +12,10 @@ export default function ClinicLayout({ children }: { children: ReactNode }) {
               Menu
             </p>
             <h2 className="mt-3 text-2xl font-semibold leading-tight text-white">
-              Finance app
+              Panel privado
             </h2>
             <p className="mt-3 text-sm leading-6 text-white/60">
-              Navegacion principal para registrar clientes y movimientos financieros.
+              Navegacion principal para registrar pacientes, proveedores, servicios e ingresos.
             </p>
             <div className="mt-4">
               <ClinicNavigation />
@@ -27,9 +27,9 @@ export default function ClinicLayout({ children }: { children: ReactNode }) {
               Estado rapido
             </p>
             <div className="mt-4 grid gap-3 text-sm leading-6 text-white/70">
-              <p>1. Dashboard para ver la foto general.</p>
-              <p>2. Clientes para tu base comercial.</p>
-              <p>3. Ingresos, egresos y reportes para caja.</p>
+              <p>1. Registra primero pacientes y proveedores.</p>
+              <p>2. Luego configura servicios e inventario.</p>
+              <p>3. Usa movimientos para ingresos y egresos.</p>
             </div>
           </article>
         </aside>

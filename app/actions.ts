@@ -92,7 +92,7 @@ function getEnumValue<T extends string>(raw: string, values: readonly T[], key: 
 }
 
 function finishMutation() {
-  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/reportes", "/proveedores", "/inventario"];
+  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/reportes", "/proveedores", "/inventario", "/servicios", "/movimientos"];
 
   for (const path of paths) {
     revalidatePath(path);
