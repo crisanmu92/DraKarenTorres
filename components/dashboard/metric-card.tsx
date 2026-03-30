@@ -22,7 +22,9 @@ export function MetricCard({
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-current/60">
         {label}
       </p>
-      <p className="mt-4 text-3xl font-semibold tracking-tight">{value}</p>
+      <p className="mt-4 max-w-full overflow-hidden text-[clamp(2rem,4vw,3.35rem)] font-semibold leading-none tracking-[-0.04em] [overflow-wrap:anywhere]">
+        {value}
+      </p>
       <p className="mt-3 text-sm leading-6 text-current/72">{helper}</p>
     </article>
   );
