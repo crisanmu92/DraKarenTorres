@@ -91,7 +91,11 @@ function getEnumValue<T extends string>(raw: string, values: readonly T[], key: 
 }
 
 function finishMutation() {
-  revalidatePath("/");
+  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/proveedores", "/inventario"];
+
+  for (const path of paths) {
+    revalidatePath(path);
+  }
 }
 
 function getId(formData: FormData) {
