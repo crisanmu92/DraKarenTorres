@@ -92,10 +92,22 @@ function getEnumValue<T extends string>(raw: string, values: readonly T[], key: 
   return raw as T;
 }
 
-function finishMutation() {
-  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/reportes", "/proveedores", "/inventario", "/servicios", "/movimientos", "/rentabilidad"];
+function finishMutation(extraPaths: string[] = []) {
+  const paths = [
+    "/",
+    "/pacientes",
+    "/ingresos",
+    "/egresos",
+    "/reportes",
+    "/proveedores",
+    "/inventario",
+    "/servicios",
+    "/movimientos",
+    "/rentabilidad",
+    ...extraPaths,
+  ];
 
-  for (const path of paths) {
+  for (const path of new Set(paths)) {
     revalidatePath(path);
   }
 }
@@ -190,28 +202,43 @@ export async function createSupplier(formData: FormData) {
 
 export async function createProduct(formData: FormData) {
   const redirectTo = getRedirectTarget(formData, "/inventario");
+  const stockQuantity = getRequiredDecimal(formData, "stockQuantity");
 
   try {
-    await prisma.product.create({
-      data: {
-        name: getRequiredString(formData, "name"),
-        description: getOptionalString(formData, "description"),
-        sku: getOptionalString(formData, "sku"),
-        lotNumber: getRequiredString(formData, "lotNumber"),
-        costPrice: getOptionalDecimal(formData, "costPrice"),
-        stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
-        minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
-        unit: getEnumValue(
-          getRequiredString(formData, "unit"),
-          inventoryUnits,
-          "unit",
-        ),
-        expiresAt: getOptionalDate(formData, "expiresAt"),
-        supplierId: getRequiredString(formData, "supplierId"),
-      },
+    await prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          name: getRequiredString(formData, "name"),
+          description: getOptionalString(formData, "description"),
+          sku: getOptionalString(formData, "sku"),
+          lotNumber: getRequiredString(formData, "lotNumber"),
+          costPrice: getOptionalDecimal(formData, "costPrice"),
+          stockQuantity,
+          minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
+          unit: getEnumValue(
+            getRequiredString(formData, "unit"),
+            inventoryUnits,
+            "unit",
+          ),
+          expiresAt: getOptionalDate(formData, "expiresAt"),
+          supplierId: getRequiredString(formData, "supplierId"),
+        },
+      });
+
+      if (stockQuantity.gt(0)) {
+        await tx.inventoryMovement.create({
+          data: {
+            occurredAt: new Date(),
+            type: InventoryMovementType.PURCHASE,
+            quantity: stockQuantity,
+            reason: "Compra inicial registrada desde la ficha del proveedor.",
+            productId: product.id,
+          },
+        });
+      }
     });
 
-    finishMutation();
+    finishMutation([redirectTo]);
     redirectWithMessage(redirectTo, { success: "Compra guardada correctamente." });
   } catch (error) {
     if (isRedirectError(error)) {
