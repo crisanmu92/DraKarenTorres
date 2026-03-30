@@ -3,7 +3,7 @@ import { InventoryMovementType, InventoryUnit } from "@prisma/client";
 import { createInventoryMovement, createProduct, deleteInventoryMovement, updateInventoryMovement } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, sectionCardClassName, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateTimeInput, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateTimeInput, formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 const inventoryMovementLabels: Record<InventoryMovementType, string> = {
@@ -41,6 +41,7 @@ export default async function InventoryPage({
     id: string;
     name: string;
     sku: string | null;
+    costPrice: unknown;
     supplier: { companyName: string };
   }> = [];
   let movements: Array<{
@@ -62,7 +63,7 @@ export default async function InventoryPage({
       }),
       prisma.product.findMany({
         orderBy: [{ name: "asc" }],
-        select: { id: true, name: true, sku: true, supplier: { select: { companyName: true } } },
+        select: { id: true, name: true, sku: true, costPrice: true, supplier: { select: { companyName: true } } },
       }),
       prisma.inventoryMovement.findMany({
         include: { product: true },
@@ -103,6 +104,9 @@ export default async function InventoryPage({
               <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
               <Field label="SKU"><input name="sku" className={inputClassName} /></Field>
               <Field label="Lote"><input name="lotNumber" className={inputClassName} required /></Field>
+              <Field label="Costo unitario">
+                <input name="costPrice" type="number" step="0.01" min="0" className={inputClassName} />
+              </Field>
               <Field label="Cantidad comprada"><input name="stockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
               <Field label="Stock minimo"><input name="minStockQuantity" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
               <Field label="Unidad">
@@ -234,6 +238,9 @@ export default async function InventoryPage({
                 <p className="font-semibold text-(--color-ink)">{product.name}</p>
                 <p className="mt-1 text-sm text-(--color-muted)">
                   {product.supplier.companyName}{product.sku ? ` · ${product.sku}` : ""}
+                </p>
+                <p className="mt-1 text-sm text-(--color-muted)">
+                  Costo unitario: {toNumber(product.costPrice) > 0 ? formatMoney(product.costPrice) : "Sin registrar"}
                 </p>
               </div>
             ))

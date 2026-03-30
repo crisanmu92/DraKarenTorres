@@ -90,6 +90,7 @@ model Product {
   description        String?
   sku                String?             @unique
   lotNumber          String
+  costPrice          Decimal?            @db.Decimal(12, 2)
   stockQuantity      Decimal             @db.Decimal(10, 2)
   minStockQuantity   Decimal             @db.Decimal(10, 2)
   unit               InventoryUnit

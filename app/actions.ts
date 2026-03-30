@@ -195,6 +195,7 @@ export async function createProduct(formData: FormData) {
       description: getOptionalString(formData, "description"),
       sku: getOptionalString(formData, "sku"),
       lotNumber: getRequiredString(formData, "lotNumber"),
+      costPrice: getOptionalDecimal(formData, "costPrice"),
       stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
       minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
       unit: getEnumValue(
@@ -404,6 +405,7 @@ export async function updateProduct(formData: FormData) {
       description: getOptionalString(formData, "description"),
       sku: getOptionalString(formData, "sku"),
       lotNumber: getRequiredString(formData, "lotNumber"),
+      costPrice: getOptionalDecimal(formData, "costPrice"),
       stockQuantity: getRequiredDecimal(formData, "stockQuantity"),
       minStockQuantity: getRequiredDecimal(formData, "minStockQuantity"),
       unit: getEnumValue(getRequiredString(formData, "unit"), inventoryUnits, "unit"),
