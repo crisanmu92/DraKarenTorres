@@ -14,22 +14,22 @@ const navigationSections = [
 
 export function ClinicNavigation() {
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       {navigationSections.map((section) => (
         <details
           key={section.title}
-          className="rounded-3xl border border-white/10 bg-white/4 px-4 py-3"
+          className="rounded-[30px] border border-white/10 bg-white/5 px-5 py-4"
           open={section.defaultOpen}
         >
-          <summary className="cursor-pointer text-sm font-semibold text-white">
+          <summary className="cursor-pointer text-lg font-semibold tracking-[-0.02em] text-white">
             {section.title}
           </summary>
-          <div className="mt-3 grid gap-2 text-sm">
+          <div className="mt-4 grid gap-3">
             {section.links.map((link) => (
               <a
                 key={`${section.title}-${link.href}`}
                 href={link.href}
-                className="rounded-2xl border border-white/8 bg-white/8 px-3 py-2 text-white/88"
+                className="rounded-[24px] border border-white/10 bg-white/9 px-4 py-4 text-base font-medium leading-6 text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               >
                 {link.label}
               </a>

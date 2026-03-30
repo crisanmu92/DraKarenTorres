@@ -5,28 +5,28 @@ import { ClinicNavigation } from "@/components/clinic/navigation";
 export default function ClinicLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-transparent">
-      <section className="mx-auto grid min-h-screen w-full max-w-[1500px] gap-0 lg:grid-cols-[18.5rem_minmax(0,1fr)]">
-        <aside className="border-r border-white/8 bg-[#0f172a] px-4 py-5 sm:px-6 lg:min-h-screen lg:px-5 lg:py-6">
-          <article className="rounded-[28px] border border-white/10 bg-white/4 p-5">
+      <section className="mx-auto grid min-h-screen w-full max-w-[1560px] gap-0 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <aside className="border-r border-white/8 bg-[#0f172a] px-4 py-5 sm:px-6 lg:min-h-screen lg:px-6 lg:py-7">
+          <article className="rounded-[32px] border border-white/10 bg-white/4 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/48">
               Menu
             </p>
-            <h2 className="mt-3 text-2xl font-semibold leading-tight text-white">
+            <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.03em] text-white">
               Panel privado
             </h2>
-            <p className="mt-3 text-sm leading-6 text-white/60">
+            <p className="mt-4 text-base leading-7 text-white/60">
               Navegacion principal para registrar pacientes, proveedores, servicios e ingresos.
             </p>
-            <div className="mt-4">
+            <div className="mt-6">
               <ClinicNavigation />
             </div>
           </article>
 
-          <article className="mt-4 rounded-[28px] border border-[#22c55e]/16 bg-[#111c34] p-5">
+          <article className="mt-5 rounded-[32px] border border-[#22c55e]/16 bg-[#111c34] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#86efac]">
               Estado rapido
             </p>
-            <div className="mt-4 grid gap-3 text-sm leading-6 text-white/70">
+            <div className="mt-5 grid gap-4 text-base leading-7 text-white/72">
               <p>1. Registra primero pacientes y proveedores.</p>
               <p>2. Luego configura servicios e inventario.</p>
               <p>3. Usa movimientos para ingresos y egresos.</p>
