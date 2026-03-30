@@ -4,21 +4,14 @@ const navigationSections = [
     defaultOpen: true,
     links: [
       { href: "/", label: "Resumen general" },
-      { href: "/pacientes", label: "Pacientes" },
+      { href: "/pacientes", label: "Clientes" },
     ],
   },
   {
-    title: "Caja",
+    title: "Movimientos financieros",
     links: [
       { href: "/ingresos", label: "Ingresos" },
       { href: "/egresos", label: "Egresos" },
-    ],
-  },
-  {
-    title: "Abastecimiento",
-    links: [
-      { href: "/proveedores", label: "Proveedores" },
-      { href: "/inventario", label: "Inventario" },
     ],
   },
 ];

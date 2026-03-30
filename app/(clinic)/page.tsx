@@ -27,9 +27,6 @@ export default async function DashboardPage() {
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
   let patientCount = 0;
-  let supplierCount = 0;
-  let productCount = 0;
-  let saleItemCount = 0;
   let upcomingFollowUps = 0;
   let incomeTodayTotal = 0;
   let expenseTodayTotal = 0;
@@ -65,9 +62,6 @@ export default async function DashboardPage() {
   try {
     [
       patientCount,
-      supplierCount,
-      productCount,
-      saleItemCount,
       upcomingFollowUps,
       incomeTodayTotal,
       expenseTodayTotal,
@@ -78,9 +72,6 @@ export default async function DashboardPage() {
       expenseBreakdown,
     ] = await Promise.all([
       prisma.patient.count(),
-      prisma.supplier.count(),
-      prisma.product.count(),
-      prisma.saleItem.count(),
       prisma.patient.count({
         where: {
           nextVisitAt: {
@@ -162,14 +153,14 @@ export default async function DashboardPage() {
       <header className="grid gap-5 rounded-[32px] border border-white/80 bg-white/84 p-5 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.4fr_0.9fr] sm:p-7 lg:rounded-[36px] lg:p-10">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.36em] text-(--color-muted)">
-            Sistema privado del consultorio
+            Aplicacion web privada
           </p>
           <div className="space-y-3">
             <h1 className="font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink) sm:text-5xl lg:text-6xl">
-              Dashboard principal del consultorio
+              Dashboard de clientes y finanzas
             </h1>
             <p className="max-w-2xl text-sm leading-7 text-(--color-muted) sm:text-base lg:text-lg">
-              Aqui visualizas pacientes, utilidad mensual, costos mensuales y el estado general del negocio.
+              Aqui visualizas clientes, utilidad mensual, costos mensuales y los movimientos financieros recientes.
             </p>
           </div>
         </div>
@@ -183,16 +174,16 @@ export default async function DashboardPage() {
           <OverviewPanel
             title="Estado"
             value={summary.warning ? "Revisar base" : "Operacion al dia"}
-            description={summary.warning ?? "La portada muestra solo informacion ejecutiva del consultorio."}
+            description={summary.warning ?? "La portada muestra solo informacion ejecutiva de clientes y finanzas."}
           />
         </div>
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Pacientes"
+          label="Clientes"
           value={String(patientCount)}
-          helper={`${upcomingFollowUps} pacientes con control en los proximos 7 dias.`}
+          helper={`${upcomingFollowUps} clientes con seguimiento en los proximos 7 dias.`}
         />
         <MetricCard
           label="Utilidad mensual"
@@ -218,7 +209,7 @@ export default async function DashboardPage() {
           <SectionHeading
             eyebrow="Finanzas"
             title="Utilidad y caja mensual"
-            description="Lectura ejecutiva para ver rapido si el mes va sano, cuanto ha entrado y cuanto ha salido."
+            description="Lectura ejecutiva para ver rapido cuanto ha entrado, cuanto ha salido y como va la utilidad del mes."
           />
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-3xl bg-(--color-panel) p-5">
@@ -270,19 +261,19 @@ export default async function DashboardPage() {
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <article className={sectionCardClassName}>
           <SectionHeading
-            eyebrow="Pacientes"
-            title="Pacientes recientes"
-            description="Vista rapida de los ultimos pacientes creados y sus proximos controles."
+            eyebrow="Clientes"
+            title="Clientes recientes"
+            description="Vista rapida de los ultimos clientes creados y sus proximos seguimientos."
           />
           <div className="mt-6 grid gap-3">
             {recentPatients.length === 0 ? (
-              <EmptyState>Aun no hay pacientes registrados.</EmptyState>
+              <EmptyState>Aun no hay clientes registrados.</EmptyState>
             ) : (
               recentPatients.map((patient) => (
                 <div key={patient.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                   <p className="font-semibold text-(--color-ink)">{patient.firstName} {patient.lastName}</p>
                   <p className="mt-1 text-sm text-(--color-muted)">{patient.phone}</p>
-                  <p className="mt-2 text-sm text-(--color-muted)">Proximo control: {formatDate(patient.nextVisitAt)}</p>
+                  <p className="mt-2 text-sm text-(--color-muted)">Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
                 </div>
               ))
             )}
@@ -316,12 +307,6 @@ export default async function DashboardPage() {
             )}
           </div>
         </article>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Proveedores" value={String(supplierCount)} helper="Contactos disponibles para compras y reposicion." />
-        <MetricCard label="Productos" value={String(productCount)} helper="Materia prima o productos activos en el sistema." />
-        <MetricCard label="Items de venta" value={String(saleItemCount)} helper="Tratamientos o productos que generan ingresos." />
       </section>
 
       <section className="grid gap-4">

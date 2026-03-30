@@ -14,8 +14,8 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Dra. Karen Torres | Operacion Clinica",
-  description: "Dashboard inicial para la operacion del consultorio de medicina estetica.",
+  title: "Dra. Karen Torres | Clientes y Finanzas",
+  description: "Aplicacion web privada para registrar clientes, ingresos, egresos y ver el dashboard financiero.",
 };
 
 export default function RootLayout({

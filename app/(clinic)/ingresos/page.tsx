@@ -30,22 +30,22 @@ export default async function RevenuesPage() {
       <SectionHeading
         eyebrow="Ingresos"
         title="Caja e ingresos"
-        description="Registra tratamientos o ventas cobradas para mantener actualizada la caja."
+        description="Registra cobros, ventas o servicios para mantener actualizada la caja."
       />
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard
           eyebrow="Nuevo ingreso"
           title="Registrar ingreso"
-          description="Relaciona paciente, item vendido, medio de pago y monto."
+          description="Relaciona cliente, concepto cobrado, medio de pago y monto."
         >
           <form action={createRevenue} className="grid gap-4">
             <div className={formGridClassName}>
               <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" className={inputClassName} /></Field>
               <Field label="Monto"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-              <Field label="Paciente">
+              <Field label="Cliente">
                 <select name="patientId" className={inputClassName} required>
-                  <option value="">Selecciona un paciente</option>
+                  <option value="">Selecciona un cliente</option>
                   {patients.map((patient) => (
                     <option key={patient.id} value={patient.id}>
                       {patient.lastName}, {patient.firstName} · {patient.identification}
@@ -53,9 +53,9 @@ export default async function RevenuesPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Item vendido">
+              <Field label="Concepto o servicio">
                 <select name="saleItemId" className={inputClassName} required>
-                  <option value="">Selecciona un item</option>
+                  <option value="">Selecciona un concepto</option>
                   {saleItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} · {formatMoney(item.unitPrice)}
@@ -82,7 +82,7 @@ export default async function RevenuesPage() {
         <FormCard
           eyebrow="Movimientos recientes"
           title="Ingresos recientes"
-          description="Ultimos cobros registrados en el sistema."
+          description="Ultimos cobros o entradas de dinero registrados en el sistema."
         >
           <div className="grid gap-3">
             {revenues.length === 0 ? (

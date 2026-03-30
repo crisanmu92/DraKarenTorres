@@ -13,10 +13,10 @@ export default function ClinicLayout({ children }: { children: ReactNode }) {
               Menu
             </p>
             <h2 className="mt-3 font-display text-3xl leading-none tracking-[-0.03em] text-(--color-ink)">
-              Consultorio
+              Aplicacion web
             </h2>
             <p className="mt-3 text-sm leading-6 text-(--color-muted)">
-              Navegacion principal para revisar el negocio y registrar la operacion diaria.
+              Navegacion principal para registrar clientes y movimientos financieros.
             </p>
             <div className="mt-4">
               <ClinicNavigation />
@@ -29,8 +29,8 @@ export default function ClinicLayout({ children }: { children: ReactNode }) {
             </p>
             <div className="mt-4 grid gap-3 text-sm leading-6 text-(--color-ink)">
               <p>1. Revisa primero el dashboard.</p>
-              <p>2. Luego registra caja, gastos y pacientes.</p>
-              <p>3. Controla proveedores e inventario antes de cerrar el dia.</p>
+              <p>2. Luego registra clientes, ingresos y egresos.</p>
+              <p>3. Usa el resumen mensual para controlar utilidad y costos.</p>
             </div>
           </article>
         </aside>
