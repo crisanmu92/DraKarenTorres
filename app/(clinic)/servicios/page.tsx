@@ -38,6 +38,7 @@ export default async function ServicesPage({
     type: SaleItemType;
     description: string | null;
     unitPrice: unknown;
+    baseCost: unknown;
     product: { id: string; name: string } | null;
   }> = [];
   let pageError: string | null = null;
@@ -90,6 +91,9 @@ export default async function ServicesPage({
               <Field label="Precio">
                 <input name="unitPrice" type="number" step="0.01" min="0" className={inputClassName} required />
               </Field>
+              <Field label="Costo base">
+                <input name="baseCost" type="number" step="0.01" min="0" className={inputClassName} />
+              </Field>
               <Field label="Producto relacionado">
                 <select name="productId" className={inputClassName} defaultValue="">
                   <option value="">Sin producto relacionado</option>
@@ -121,6 +125,7 @@ export default async function ServicesPage({
                   <p className="font-semibold text-(--color-ink)">{item.name}</p>
                   <p className="mt-1 text-sm text-(--color-muted)">
                     {saleItemTypeLabels[item.type]} · {formatMoney(item.unitPrice)}
+                    {` · costo base ${formatMoney(item.baseCost)}`}
                     {item.product ? ` · ${item.product.name}` : ""}
                   </p>
                   <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
@@ -141,6 +146,9 @@ export default async function ServicesPage({
                           </Field>
                           <Field label="Precio">
                             <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={String(item.unitPrice)} className={inputClassName} required />
+                          </Field>
+                          <Field label="Costo base">
+                            <input name="baseCost" type="number" step="0.01" min="0" defaultValue={item.baseCost == null ? "" : String(item.baseCost)} className={inputClassName} />
                           </Field>
                           <Field label="Producto relacionado">
                             <select name="productId" defaultValue={item.product?.id ?? ""} className={inputClassName}>

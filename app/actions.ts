@@ -93,7 +93,7 @@ function getEnumValue<T extends string>(raw: string, values: readonly T[], key: 
 }
 
 function finishMutation() {
-  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/reportes", "/proveedores", "/inventario", "/servicios", "/movimientos"];
+  const paths = ["/", "/pacientes", "/ingresos", "/egresos", "/reportes", "/proveedores", "/inventario", "/servicios", "/movimientos", "/rentabilidad"];
 
   for (const path of paths) {
     revalidatePath(path);
@@ -228,6 +228,7 @@ export async function createSaleItem(formData: FormData) {
       type,
       description: getOptionalString(formData, "description"),
       unitPrice: getRequiredDecimal(formData, "unitPrice"),
+      baseCost: getOptionalDecimal(formData, "baseCost"),
       productId,
     },
   });
@@ -239,10 +240,18 @@ export async function createRevenue(formData: FormData) {
   const redirectTo = getRedirectTarget(formData, "/ingresos");
 
   try {
+    const saleItemId = getRequiredString(formData, "saleItemId");
+    const manualCost = getOptionalDecimal(formData, "costAmount");
+    const saleItem = await prisma.saleItem.findUnique({
+      where: { id: saleItemId },
+      select: { baseCost: true },
+    });
+
     await prisma.revenue.create({
       data: {
         occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
         amount: getRequiredDecimal(formData, "amount"),
+        costAmount: manualCost ?? saleItem?.baseCost ?? undefined,
         paymentMethod: getEnumValue(
           getRequiredString(formData, "paymentMethod"),
           paymentMethods,
@@ -250,7 +259,7 @@ export async function createRevenue(formData: FormData) {
         ),
         notes: getOptionalString(formData, "notes"),
         patientId: getRequiredString(formData, "patientId"),
-        saleItemId: getRequiredString(formData, "saleItemId"),
+        saleItemId,
       },
     });
 
@@ -438,6 +447,7 @@ export async function updateSaleItem(formData: FormData) {
       type,
       description: getOptionalString(formData, "description"),
       unitPrice: getRequiredDecimal(formData, "unitPrice"),
+      baseCost: getOptionalDecimal(formData, "baseCost"),
       productId,
     },
   });
@@ -457,11 +467,19 @@ export async function deleteSaleItem(formData: FormData) {
 }
 
 export async function updateRevenue(formData: FormData) {
+  const saleItemId = getRequiredString(formData, "saleItemId");
+  const manualCost = getOptionalDecimal(formData, "costAmount");
+  const saleItem = await prisma.saleItem.findUnique({
+    where: { id: saleItemId },
+    select: { baseCost: true },
+  });
+
   await prisma.revenue.update({
     where: { id: getId(formData) },
     data: {
       occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
       amount: getRequiredDecimal(formData, "amount"),
+      costAmount: manualCost ?? saleItem?.baseCost ?? undefined,
       paymentMethod: getEnumValue(
         getRequiredString(formData, "paymentMethod"),
         paymentMethods,
@@ -469,7 +487,7 @@ export async function updateRevenue(formData: FormData) {
       ),
       notes: getOptionalString(formData, "notes"),
       patientId: getRequiredString(formData, "patientId"),
-      saleItemId: getRequiredString(formData, "saleItemId"),
+      saleItemId,
     },
   });
 

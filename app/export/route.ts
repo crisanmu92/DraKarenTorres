@@ -151,11 +151,12 @@ export async function GET() {
     ),
     buildTable(
       "Servicios",
-      ["Nombre", "Tipo", "Precio", "Producto relacionado", "Activo", "Descripcion"],
+      ["Nombre", "Tipo", "Precio", "Costo base", "Producto relacionado", "Activo", "Descripcion"],
       saleItems.map((saleItem) => [
         saleItem.name,
         saleItemTypeLabels[saleItem.type],
         toNumber(saleItem.unitPrice),
+        toNumber(saleItem.baseCost),
         saleItem.product?.name ?? "",
         saleItem.isActive ? "Si" : "No",
         saleItem.description ?? "",
@@ -163,12 +164,14 @@ export async function GET() {
     ),
     buildTable(
       "Ingresos",
-      ["Fecha", "Cliente", "Servicio", "Monto", "Medio de pago", "Notas"],
+      ["Fecha", "Cliente", "Servicio", "Monto", "Costo", "Ganancia", "Medio de pago", "Notas"],
       revenues.map((revenue) => [
         formatDateCell(revenue.occurredAt),
         `${revenue.patient.firstName} ${revenue.patient.lastName}`,
         revenue.saleItem.name,
         toNumber(revenue.amount),
+        toNumber(revenue.costAmount),
+        toNumber(revenue.amount) - toNumber(revenue.costAmount),
         paymentMethodLabels[revenue.paymentMethod as PaymentMethod],
         revenue.notes ?? "",
       ]),

@@ -78,6 +78,16 @@ function MovementsIcon(active: boolean) {
   );
 }
 
+function ProfitabilityIcon(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" className={`h-7 w-7 ${active ? "text-white" : "text-[#4b5567]"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 16.5 9.75 11.25l3.75 3.75 6-7.5" />
+      <path d="M15.75 7.5h3.75v3.75" />
+      <path d="M4.5 20.25h15" />
+    </svg>
+  );
+}
+
 function ExportIcon(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" className={`h-7 w-7 ${active ? "text-white" : "text-[#4b5567]"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -95,6 +105,7 @@ const links: NavLink[] = [
   { href: "/inventario", label: "Inventario", icon: InventoryIcon },
   { href: "/servicios", label: "Servicios", icon: ServicesIcon },
   { href: "/movimientos", label: "Movimientos", icon: MovementsIcon },
+  { href: "/rentabilidad", label: "Rentabilidad", icon: ProfitabilityIcon },
   { href: "/export", label: "Descargar Excel", icon: ExportIcon },
 ];
 

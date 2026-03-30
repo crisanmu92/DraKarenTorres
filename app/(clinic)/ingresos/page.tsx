@@ -3,7 +3,7 @@ import { PaymentMethod } from "@prisma/client";
 import { createRevenue, deleteRevenue, updateRevenue } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateTimeInput, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
+import { formatDate, formatDateTimeInput, formatMoney, paymentMethodLabels, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ export default async function RevenuesPage({
     id: string;
     name: string;
     unitPrice: unknown;
+    baseCost: unknown;
   }> = [];
   let revenues: Array<{
     id: string;
@@ -33,6 +34,7 @@ export default async function RevenuesPage({
     notes: string | null;
     patientId: string;
     saleItemId: string;
+    costAmount: unknown;
     patient: { firstName: string; lastName: string };
     saleItem: { name: string };
   }> = [];
@@ -46,7 +48,7 @@ export default async function RevenuesPage({
       }),
       prisma.saleItem.findMany({
         orderBy: { name: "asc" },
-        select: { id: true, name: true, unitPrice: true },
+        select: { id: true, name: true, unitPrice: true, baseCost: true },
       }),
       prisma.revenue.findMany({
         include: { patient: true, saleItem: true },
@@ -96,10 +98,13 @@ export default async function RevenuesPage({
                   <option value="">Selecciona un concepto</option>
                   {saleItems.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.name} · {formatMoney(item.unitPrice)}
+                      {item.name} · {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
                     </option>
                   ))}
                 </select>
+              </Field>
+              <Field label="Costo real">
+                <input name="costAmount" type="number" step="0.01" min="0" className={inputClassName} />
               </Field>
               <Field label="Medio de pago">
                 <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
@@ -136,6 +141,9 @@ export default async function RevenuesPage({
                       <p className="mt-1 text-sm text-(--color-muted)">
                         {revenue.saleItem.name} · {paymentMethodLabels[revenue.paymentMethod]}
                       </p>
+                      <p className="mt-1 text-sm text-(--color-muted)">
+                        Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(toNumber(revenue.amount) - toNumber(revenue.costAmount))}
+                      </p>
                     </div>
                     <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(revenue.amount)}</p>
                   </div>
@@ -163,10 +171,13 @@ export default async function RevenuesPage({
                             <select name="saleItemId" defaultValue={revenue.saleItemId} className={inputClassName} required>
                               {saleItems.map((item) => (
                                 <option key={item.id} value={item.id}>
-                                  {item.name} · {formatMoney(item.unitPrice)}
+                                  {item.name} · {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
                                 </option>
                               ))}
                             </select>
+                          </Field>
+                          <Field label="Costo real">
+                            <input name="costAmount" type="number" step="0.01" min="0" defaultValue={revenue.costAmount == null ? "" : String(revenue.costAmount)} className={inputClassName} />
                           </Field>
                           <Field label="Medio de pago">
                             <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
