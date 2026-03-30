@@ -23,10 +23,10 @@ export function ClinicNavigation() {
       {navigationSections.map((section) => (
         <details
           key={section.title}
-          className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/50 px-4 py-3"
+          className="rounded-3xl border border-white/10 bg-white/4 px-4 py-3"
           open={section.defaultOpen}
         >
-          <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
             {section.title}
           </summary>
           <div className="mt-3 grid gap-2 text-sm">
@@ -34,7 +34,7 @@ export function ClinicNavigation() {
               <a
                 key={`${section.title}-${link.href}`}
                 href={link.href}
-                className="rounded-2xl bg-white/90 px-3 py-2 text-(--color-ink)"
+                className="rounded-2xl border border-white/8 bg-white/8 px-3 py-2 text-white/88"
               >
                 {link.label}
               </a>

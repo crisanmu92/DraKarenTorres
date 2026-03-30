@@ -4,18 +4,17 @@ import { ClinicNavigation } from "@/components/clinic/navigation";
 
 export default function ClinicLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="relative min-h-screen overflow-hidden">
-      <div className="absolute inset-x-0 top-0 -z-10 h-136 bg-[radial-gradient(circle_at_top,rgba(214,193,167,0.28),transparent_48%),linear-gradient(180deg,rgba(251,247,242,0.98),rgba(246,238,228,0.88))]" />
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-5 sm:px-8 sm:py-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:px-10 lg:py-10">
-        <aside className="grid gap-4 self-start lg:sticky lg:top-6">
-          <article className="rounded-4xl border border-(--color-line) bg-white/90 p-5 shadow-(--shadow-card)">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
+    <main className="min-h-screen bg-transparent">
+      <section className="mx-auto grid min-h-screen w-full max-w-[1500px] gap-0 lg:grid-cols-[18.5rem_minmax(0,1fr)]">
+        <aside className="border-r border-white/8 bg-[#0f172a] px-4 py-5 sm:px-6 lg:min-h-screen lg:px-5 lg:py-6">
+          <article className="rounded-[28px] border border-white/10 bg-white/4 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/48">
               Menu
             </p>
-            <h2 className="mt-3 font-display text-3xl leading-none tracking-[-0.03em] text-(--color-ink)">
-              Aplicacion web
+            <h2 className="mt-3 text-2xl font-semibold leading-tight text-white">
+              Finance app
             </h2>
-            <p className="mt-3 text-sm leading-6 text-(--color-muted)">
+            <p className="mt-3 text-sm leading-6 text-white/60">
               Navegacion principal para registrar clientes y movimientos financieros.
             </p>
             <div className="mt-4">
@@ -23,19 +22,19 @@ export default function ClinicLayout({ children }: { children: ReactNode }) {
             </div>
           </article>
 
-          <article className="rounded-4xl border border-(--color-line) bg-[#f3eadf] p-5 shadow-(--shadow-card)">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
-              Uso diario
+          <article className="mt-4 rounded-[28px] border border-[#22c55e]/16 bg-[#111c34] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#86efac]">
+              Estado rapido
             </p>
-            <div className="mt-4 grid gap-3 text-sm leading-6 text-(--color-ink)">
-              <p>1. Revisa primero el dashboard.</p>
-              <p>2. Luego registra clientes, ingresos y egresos.</p>
-              <p>3. Usa el resumen mensual para controlar utilidad y costos.</p>
+            <div className="mt-4 grid gap-3 text-sm leading-6 text-white/70">
+              <p>1. Dashboard para ver la foto general.</p>
+              <p>2. Clientes para tu base comercial.</p>
+              <p>3. Ingresos, egresos y reportes para caja.</p>
             </div>
           </article>
         </aside>
 
-        <div className="grid gap-6">{children}</div>
+        <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">{children}</div>
       </section>
     </main>
   );

@@ -12,17 +12,17 @@ export function MetricCard({
   tone = "neutral",
 }: MetricCardProps) {
   const toneClassName = {
-    neutral: "border-[var(--color-line)] bg-white/82 text-[var(--color-ink)]",
-    positive: "border-[#d7cab8] bg-[#f8f1e8] text-[var(--color-ink)]",
-    negative: "border-[#dbc8bf] bg-[#f6eee9] text-[var(--color-ink)]",
+    neutral: "border-[var(--color-line)] bg-white text-[var(--color-ink)]",
+    positive: "border-[#b7ebc6] bg-[#f2fcf5] text-[var(--color-ink)]",
+    negative: "border-[#f0c9c2] bg-[#fff5f3] text-[var(--color-ink)]",
   }[tone];
 
   return (
-    <article className={`rounded-[28px] border p-6 shadow-[var(--shadow-card)] ${toneClassName}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-current/60">
+    <article className={`rounded-[24px] border p-5 shadow-[var(--shadow-card)] sm:p-6 ${toneClassName}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-current/60">
         {label}
       </p>
-      <p className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{value}</p>
+      <p className="mt-4 text-3xl font-semibold tracking-tight">{value}</p>
       <p className="mt-3 text-sm leading-6 text-current/72">{helper}</p>
     </article>
   );

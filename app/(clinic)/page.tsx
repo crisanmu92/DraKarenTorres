@@ -117,7 +117,7 @@ export default async function DashboardPage() {
       }),
       prisma.expense.findMany({
         orderBy: [{ occurredAt: "desc" }],
-        take: 5,
+        take: 6,
         select: { id: true, occurredAt: true, amount: true, category: true, description: true },
       }),
       prisma.expense
@@ -150,31 +150,65 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <header className="grid gap-5 rounded-[32px] border border-white/80 bg-white/84 p-5 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.4fr_0.9fr] sm:p-7 lg:rounded-[36px] lg:p-10">
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.36em] text-(--color-muted)">
-            Aplicacion web privada
-          </p>
+      <header className="grid gap-4 rounded-[28px] border border-(--color-line) bg-white p-5 shadow-(--shadow-card) lg:grid-cols-[1.25fr_0.75fr] lg:p-7">
+        <div className="space-y-5">
+          <div className="inline-flex w-fit rounded-full border border-[#dbe4ee] bg-[#f7fafc] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0f172a]">
+            Dashboard financiero
+          </div>
           <div className="space-y-3">
-            <h1 className="font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink) sm:text-5xl lg:text-6xl">
-              Dashboard de clientes y finanzas
+            <h1 className="text-3xl font-semibold leading-tight text-(--color-ink) sm:text-4xl lg:text-5xl">
+              Control de clientes y flujo de caja
             </h1>
-            <p className="max-w-2xl text-sm leading-7 text-(--color-muted) sm:text-base lg:text-lg">
-              Aqui visualizas clientes, utilidad mensual, costos mensuales y los movimientos financieros recientes.
+            <p className="max-w-2xl text-sm leading-7 text-(--color-muted) sm:text-base">
+              Una estructura mucho mas cercana a una app financiera: numeros claros, actividad reciente y acceso rapido a ingresos, egresos y reportes.
             </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-muted)">
+                Periodo
+              </p>
+              <p className="mt-2 text-lg font-semibold text-(--color-ink)">{currentMonthLabel}</p>
+            </div>
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-muted)">
+                Caja de hoy
+              </p>
+              <p className="mt-2 text-lg font-semibold text-(--color-ink)">{formatMoney(dailyBalance)}</p>
+            </div>
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-muted)">
+                Ticket promedio
+              </p>
+              <p className="mt-2 text-lg font-semibold text-(--color-ink)">{formatMoney(averageTicket)}</p>
+            </div>
           </div>
         </div>
 
         <div className="grid gap-4 self-start">
-          <OverviewPanel
-            title="Periodo activo"
-            value={currentMonthLabel}
-            description="Corte mensual dinamico basado en la fecha actual."
-          />
+          <div className="rounded-[24px] border border-[#dbe4ee] bg-[#0f172a] p-5 text-white shadow-(--shadow-card)">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+              Resultado neto
+            </p>
+            <p className="mt-3 text-4xl font-semibold tracking-tight">
+              {formatMoney(monthlyUtility)}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/70">
+              Margen del mes: {formatPercent(utilityMargin)}.
+            </p>
+            <div className="mt-5 h-2 rounded-full bg-white/10">
+              <div
+                className="h-2 rounded-full bg-[#22c55e]"
+                style={{ width: `${Math.max(10, Math.min(utilityMargin, 100))}%` }}
+              />
+            </div>
+          </div>
+
           <OverviewPanel
             title="Estado"
-            value={summary.warning ? "Revisar base" : "Operacion al dia"}
-            description={summary.warning ?? "La portada muestra solo informacion ejecutiva de clientes y finanzas."}
+            value={summary.warning ? "Revisar base" : "Todo al dia"}
+            description={summary.warning ?? "La app ya esta orientada a clientes, movimientos y reportes."}
           />
         </div>
       </header>
@@ -186,94 +220,95 @@ export default async function DashboardPage() {
           helper={`${upcomingFollowUps} clientes con seguimiento en los proximos 7 dias.`}
         />
         <MetricCard
-          label="Utilidad mensual"
-          value={formatMoney(monthlyUtility)}
-          helper={`Margen acumulado del mes: ${formatPercent(utilityMargin)}.`}
+          label="Ingresos del mes"
+          value={formatMoney(monthlyIncome)}
+          helper={`${summary.revenueCount} ingresos registrados en el periodo actual.`}
           tone="positive"
         />
         <MetricCard
-          label="Costos mensuales"
+          label="Costos del mes"
           value={formatMoney(monthlyCosts)}
           helper={`${summary.expenseCount} egresos registrados en el periodo actual.`}
           tone="negative"
         />
         <MetricCard
-          label="Ingresos mensuales"
-          value={formatMoney(monthlyIncome)}
-          helper={`${summary.revenueCount} ingresos registrados en el periodo actual.`}
+          label="Utilidad mensual"
+          value={formatMoney(monthlyUtility)}
+          helper={`Margen acumulado del mes: ${formatPercent(utilityMargin)}.`}
         />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <article className={sectionCardClassName}>
+          <SectionHeading
+            eyebrow="Resumen"
+            title="Ingresos vs costos"
+            description="Una lectura mucho mas de software financiero: cuanto entro, cuanto salio y que tanto queda."
+          />
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Ingresos</p>
+              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(monthlyIncome)}</p>
+              <p className="mt-2 text-sm text-(--color-muted)">Flujo positivo acumulado del mes.</p>
+            </div>
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#fff7f5] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Egresos</p>
+              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(monthlyCosts)}</p>
+              <p className="mt-2 text-sm text-(--color-muted)">Salidas registradas en el mes.</p>
+            </div>
+            <div className="rounded-3xl border border-[#dbe4ee] bg-[#f3fbf6] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Utilidad</p>
+              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(monthlyUtility)}</p>
+              <p className="mt-2 text-sm text-(--color-muted)">Resultado actual del periodo.</p>
+            </div>
+          </div>
+        </article>
+
+        <article className={sectionCardClassName}>
+          <SectionHeading
+            eyebrow="Atajos"
+            title="Panel de control"
+            description="Accesos pensados como una app de operaciones financieras."
+          />
+          <div className="mt-6 grid gap-3">
+            <a href="/pacientes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+              Ir a clientes
+            </a>
+            <a href="/ingresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+              Registrar ingreso
+            </a>
+            <a href="/egresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+              Registrar egreso
+            </a>
+            <a href="/reportes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+              Ver reportes
+            </a>
+          </div>
+        </article>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <article className={sectionCardClassName}>
           <SectionHeading
-            eyebrow="Finanzas"
-            title="Utilidad y caja mensual"
-            description="Lectura ejecutiva para ver rapido cuanto ha entrado, cuanto ha salido y como va la utilidad del mes."
-          />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-3xl bg-(--color-panel) p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Utilidad actual</p>
-              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(monthlyUtility)}</p>
-            </div>
-            <div className="rounded-3xl bg-(--color-panel) p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Costos del mes</p>
-              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(monthlyCosts)}</p>
-            </div>
-            <div className="rounded-3xl bg-(--color-panel) p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Caja de hoy</p>
-              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(dailyBalance)}</p>
-            </div>
-            <div className="rounded-3xl bg-(--color-panel) p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Ticket promedio</p>
-              <p className="mt-3 text-3xl font-semibold text-(--color-ink)">{formatMoney(averageTicket)}</p>
-            </div>
-          </div>
-        </article>
-
-        <article className={sectionCardClassName}>
-          <SectionHeading
-            eyebrow="Gasto del mes"
-            title="Costos mensuales por categoria"
-            description="Desglose rapido para ver en que rubros se esta yendo mas dinero."
-          />
-          <div className="mt-6 grid gap-3">
-            {expenseBreakdown.length === 0 ? (
-              <EmptyState>No hay egresos suficientes este mes para desglosar categorias.</EmptyState>
-            ) : (
-              expenseBreakdown.map((item) => (
-                <div key={item.category} className="grid gap-2 rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-(--color-ink)">{expenseCategoryLabels[item.category]}</p>
-                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(item.total)}</p>
-                  </div>
-                  <div className="h-2 rounded-full bg-[var(--color-panel)]">
-                    <div className="h-2 rounded-full bg-[#171311]" style={{ width: `${Math.min(item.share, 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-(--color-muted)">{formatPercent(item.share)} del gasto mensual.</p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <article className={sectionCardClassName}>
-          <SectionHeading
             eyebrow="Clientes"
             title="Clientes recientes"
-            description="Vista rapida de los ultimos clientes creados y sus proximos seguimientos."
+            description="Los registros nuevos quedan visibles como un feed simple y util."
           />
           <div className="mt-6 grid gap-3">
             {recentPatients.length === 0 ? (
               <EmptyState>Aun no hay clientes registrados.</EmptyState>
             ) : (
               recentPatients.map((patient) => (
-                <div key={patient.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="font-semibold text-(--color-ink)">{patient.firstName} {patient.lastName}</p>
-                  <p className="mt-1 text-sm text-(--color-muted)">{patient.phone}</p>
-                  <p className="mt-2 text-sm text-(--color-muted)">Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
+                <div key={patient.id} className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-(--color-ink)">{patient.firstName} {patient.lastName}</p>
+                      <p className="mt-1 text-sm text-(--color-muted)">{patient.phone}</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-(--color-muted)">
+                      {formatDate(patient.nextVisitAt)}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
@@ -282,24 +317,26 @@ export default async function DashboardPage() {
 
         <article className={sectionCardClassName}>
           <SectionHeading
-            eyebrow="Actividad"
-            title="Ingresos recientes"
-            description="Ultimos movimientos de caja positivos registrados en el sistema."
+            eyebrow="Actividad reciente"
+            title="Ultimos ingresos"
+            description="Movimientos recientes presentados como una lista compacta de transacciones."
           />
           <div className="mt-6 grid gap-3">
             {recentRevenues.length === 0 ? (
               <EmptyState>Aun no hay ingresos registrados.</EmptyState>
             ) : (
               recentRevenues.map((revenue) => (
-                <div key={revenue.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                <div key={revenue.id} className="rounded-3xl border border-[#dbe4ee] bg-white px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-(--color-ink)">{revenue.patient.firstName} {revenue.patient.lastName}</p>
+                      <p className="font-semibold text-(--color-ink)">
+                        {revenue.patient.firstName} {revenue.patient.lastName}
+                      </p>
                       <p className="mt-1 text-sm text-(--color-muted)">
                         {revenue.saleItem.name} · {paymentMethodLabels[revenue.paymentMethod]}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(revenue.amount)}</p>
+                    <p className="text-sm font-semibold text-[#16a34a]">{formatMoney(revenue.amount)}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(revenue.occurredAt)}</p>
                 </div>
@@ -309,25 +346,51 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      <section className="grid gap-4">
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <article className={sectionCardClassName}>
           <SectionHeading
             eyebrow="Costos"
-            title="Egresos recientes"
-            description="Ultimos gastos registrados para tener contexto inmediato del mes."
+            title="Categorias con mayor peso"
+            description="Bloque visual tipo finanzas para detectar rapido donde se concentra el gasto."
           />
-          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid gap-3">
+            {expenseBreakdown.length === 0 ? (
+              <EmptyState>No hay egresos suficientes este mes para desglosar categorias.</EmptyState>
+            ) : (
+              expenseBreakdown.map((item) => (
+                <div key={item.category} className="grid gap-2 rounded-3xl border border-[#dbe4ee] bg-white px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-(--color-ink)">{expenseCategoryLabels[item.category]}</p>
+                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(item.total)}</p>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#edf2f7]">
+                    <div className="h-2 rounded-full bg-[#111827]" style={{ width: `${Math.min(item.share, 100)}%` }} />
+                  </div>
+                  <p className="text-xs text-(--color-muted)">{formatPercent(item.share)} del gasto mensual.</p>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+
+        <article className={sectionCardClassName}>
+          <SectionHeading
+            eyebrow="Egresos recientes"
+            title="Ultimas salidas de dinero"
+            description="Vista de actividad para seguir pagos y costos recientes."
+          />
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
             {recentExpenses.length === 0 ? (
               <EmptyState>Aun no hay egresos registrados.</EmptyState>
             ) : (
               recentExpenses.map((expense) => (
-                <div key={expense.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                <div key={expense.id} className="rounded-3xl border border-[#dbe4ee] bg-white px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-(--color-ink)">{expense.description}</p>
                       <p className="mt-1 text-sm text-(--color-muted)">{expenseCategoryLabels[expense.category]}</p>
                     </div>
-                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(expense.amount)}</p>
+                    <p className="text-sm font-semibold text-[#b91c1c]">{formatMoney(expense.amount)}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(expense.occurredAt)}</p>
                 </div>
