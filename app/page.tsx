@@ -214,6 +214,78 @@ function EmptyState({ children }: EmptyStateProps) {
   );
 }
 
+type MenuSection = {
+  title: string;
+  defaultOpen?: boolean;
+  links: Array<{
+    href: string;
+    label: string;
+  }>;
+};
+
+const menuSections: MenuSection[] = [
+  {
+    title: "Pacientes",
+    defaultOpen: true,
+    links: [
+      { href: "#pacientes", label: "Agregar pacientes" },
+      { href: "#ingresos", label: "Registrar ingresos" },
+    ],
+  },
+  {
+    title: "Caja y gastos",
+    links: [
+      { href: "#ingresos", label: "Caja diaria" },
+      { href: "#egresos", label: "Gastos" },
+      { href: "#finanzas", label: "Utilidades" },
+    ],
+  },
+  {
+    title: "Proveedores y materia prima",
+    links: [
+      { href: "#proveedores", label: "Proveedores" },
+      { href: "#productos", label: "Materia prima" },
+      { href: "#inventario", label: "Movimientos" },
+    ],
+  },
+  {
+    title: "Catalogo",
+    links: [
+      { href: "#precios", label: "Items de venta" },
+      { href: "#resumen", label: "Resumen general" },
+    ],
+  },
+];
+
+function QuickMenu({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`grid gap-3 ${compact ? "" : "mt-4"}`}>
+      {menuSections.map((section) => (
+        <details
+          key={section.title}
+          className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3"
+          open={section.defaultOpen}
+        >
+          <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+            {section.title}
+          </summary>
+          <div className="mt-3 grid gap-2 text-sm">
+            {section.links.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 type PatientSummary = {
   id: string;
   firstName: string;
@@ -551,17 +623,17 @@ export default async function Home() {
     <main className="relative overflow-hidden">
       <div className="absolute inset-x-0 top-0 -z-10 h-136 bg-[radial-gradient(circle_at_top,rgba(214,193,167,0.28),transparent_48%),linear-gradient(180deg,rgba(251,247,242,0.98),rgba(246,238,228,0.88))]" />
 
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <header className="grid gap-6 rounded-[36px] border border-white/80 bg-white/84 p-7 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.5fr_0.9fr] lg:p-10">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-5 sm:gap-10 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+        <header className="grid gap-5 rounded-[32px] border border-white/80 bg-white/84 p-5 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.5fr_0.9fr] sm:gap-6 sm:p-7 lg:rounded-[36px] lg:p-10">
           <div className="space-y-5">
             <p className="text-xs font-semibold uppercase tracking-[0.36em] text-(--color-muted)">
               Sistema Privado del Consultorio
             </p>
             <div className="space-y-3">
-              <h1 className="font-display text-5xl leading-none tracking-[-0.03em] text-(--color-ink) sm:text-6xl">
+              <h1 className="font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink) sm:text-5xl lg:text-6xl">
                 Gestion diaria clara, privada y ordenada.
               </h1>
-              <p className="max-w-2xl text-base leading-7 text-(--color-muted) sm:text-lg">
+              <p className="max-w-2xl text-sm leading-7 text-(--color-muted) sm:text-base lg:text-lg">
                 Desde esta pagina puedes llevar pacientes, caja, gastos, proveedores, materia
                 prima e inventario sin salir del sistema.
               </p>
@@ -584,6 +656,25 @@ export default async function Home() {
             />
           </div>
         </header>
+
+        <section className="xl:hidden">
+          <article className="rounded-4xl border border-(--color-line) bg-white/90 p-5 shadow-(--shadow-card)">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
+                  Navegacion
+                </p>
+                <h2 className="mt-2 font-display text-3xl leading-none tracking-[-0.03em] text-(--color-ink)">
+                  Menu rapido para celular
+                </h2>
+              </div>
+              <p className="max-w-md text-sm leading-6 text-(--color-muted)">
+                Desde aqui puedes abrir cada modulo sin perderte en la pagina.
+              </p>
+            </div>
+            <QuickMenu />
+          </article>
+        </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid gap-4">
@@ -642,46 +733,7 @@ export default async function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
                   Menu
                 </p>
-                <div className="mt-4 grid gap-3">
-                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3" open>
-                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                      Pacientes
-                    </summary>
-                    <div className="mt-3 grid gap-2 text-sm">
-                      <a href="#pacientes" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Agregar pacientes</a>
-                      <a href="#ingresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Registrar ingresos</a>
-                    </div>
-                  </details>
-                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                      Caja y gastos
-                    </summary>
-                    <div className="mt-3 grid gap-2 text-sm">
-                      <a href="#ingresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Caja diaria</a>
-                      <a href="#egresos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Gastos</a>
-                      <a href="#finanzas" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Utilidades</a>
-                    </div>
-                  </details>
-                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                      Proveedores y materia prima
-                    </summary>
-                    <div className="mt-3 grid gap-2 text-sm">
-                      <a href="#proveedores" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Proveedores</a>
-                      <a href="#productos" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Materia prima</a>
-                      <a href="#inventario" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Movimientos</a>
-                    </div>
-                  </details>
-                  <details className="rounded-3xl border border-(--color-line) bg-[var(--color-panel)]/55 px-4 py-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                      Catalogo
-                    </summary>
-                    <div className="mt-3 grid gap-2 text-sm">
-                      <a href="#precios" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Items de venta</a>
-                      <a href="#resumen" className="rounded-2xl bg-white/85 px-3 py-2 text-(--color-ink)">Resumen general</a>
-                    </div>
-                  </details>
-                </div>
+                <QuickMenu compact />
               </article>
 
               <article className="rounded-4xl border border-(--color-line) bg-[#f3eadf] p-5 text-(--color-ink) shadow-(--shadow-card)">
