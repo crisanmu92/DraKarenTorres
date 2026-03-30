@@ -10,17 +10,23 @@ import {
   paymentMethodLabels,
   toNumber,
 } from "@/lib/clinic-format";
-import { getDashboardSummary } from "@/lib/dashboard";
+import { getDashboardSummary, getMonthRange } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const summary = await getDashboardSummary();
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const selectedMonth = resolvedSearchParams?.month ?? null;
+  const summary = await getDashboardSummary(selectedMonth);
+  const { monthStart, nextMonthStart } = getMonthRange(selectedMonth);
+  const currentMonthLabel = monthFormatter.format(monthStart);
+  const currentMonthValue = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}`;
   const now = new Date();
-  const currentMonthLabel = monthFormatter.format(now);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const tomorrowStart = new Date(todayStart);
@@ -169,7 +175,21 @@ export default async function DashboardPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-muted)">
                 Periodo
               </p>
-              <p className="mt-2 text-lg font-semibold text-(--color-ink)">{currentMonthLabel}</p>
+              <form method="GET" className="mt-2 grid gap-2">
+                <input
+                  type="month"
+                  name="month"
+                  defaultValue={currentMonthValue}
+                  className="rounded-2xl border border-[#dbe4ee] bg-white px-3 py-2 text-sm font-semibold text-(--color-ink) outline-none"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex w-fit items-center justify-center rounded-full bg-[#2f5be7] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white"
+                >
+                  Aplicar
+                </button>
+              </form>
+              <p className="mt-3 text-sm font-semibold text-(--color-ink)">{currentMonthLabel}</p>
             </div>
             <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-muted)">
@@ -243,7 +263,7 @@ export default async function DashboardPage() {
           <SectionHeading
             eyebrow="Resumen"
             title="Ingresos vs costos"
-            description="Una lectura mucho mas de software financiero: cuanto entro, cuanto salio y que tanto queda."
+            description="Una lectura mucho mas de software financiero: cuanto entro, cuanto salio y que tanto queda en el mes elegido."
           />
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] p-5">

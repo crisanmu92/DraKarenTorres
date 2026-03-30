@@ -2,10 +2,34 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 
-function getCurrentMonthRange() {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+export function parseMonthValue(month?: string | null) {
+  if (!month) {
+    return null;
+  }
+
+  const match = month.match(/^(\d{4})-(\d{2})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+
+  if (Number.isNaN(year) || Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return null;
+  }
+
+  return { year, monthIndex };
+}
+
+export function getMonthRange(selectedMonth?: string | null) {
+  const parsedMonth = parseMonthValue(selectedMonth);
+  const baseDate = parsedMonth
+    ? new Date(parsedMonth.year, parsedMonth.monthIndex, 1)
+    : new Date();
+  const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  const nextMonthStart = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
 
   return { monthStart, nextMonthStart };
 }
@@ -37,8 +61,8 @@ export type DashboardSummary = {
   warning: string | null;
 };
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const { monthStart, nextMonthStart } = getCurrentMonthRange();
+export async function getDashboardSummary(selectedMonth?: string | null): Promise<DashboardSummary> {
+  const { monthStart, nextMonthStart } = getMonthRange(selectedMonth);
   const nearExpiryLimit = new Date();
   nearExpiryLimit.setDate(nearExpiryLimit.getDate() + 45);
 
