@@ -9,6 +9,7 @@ import {
   SaleItemType,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
@@ -163,6 +164,10 @@ export async function createPatient(formData: FormData) {
     finishMutation();
     redirectWithMessage(redirectTo, { success: "Cliente guardado correctamente." });
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     redirectWithMessage(redirectTo, {
       error: getFriendlyErrorMessage(error, "No se pudo guardar el cliente."),
     });
@@ -252,6 +257,10 @@ export async function createRevenue(formData: FormData) {
     finishMutation();
     redirectWithMessage(redirectTo, { success: "Ingreso guardado correctamente." });
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     redirectWithMessage(redirectTo, {
       error: getFriendlyErrorMessage(error, "No se pudo registrar el ingreso."),
     });
@@ -279,6 +288,10 @@ export async function createExpense(formData: FormData) {
     finishMutation();
     redirectWithMessage(redirectTo, { success: "Egreso guardado correctamente." });
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     redirectWithMessage(redirectTo, {
       error: getFriendlyErrorMessage(error, "No se pudo registrar el egreso."),
     });
