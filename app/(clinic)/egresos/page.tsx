@@ -1,14 +1,19 @@
 import { ExpenseCategory } from "@prisma/client";
 
 import { createExpense } from "@/app/actions";
-import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, textareaClassName } from "@/components/clinic/ui";
+import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { expenseCategoryLabels, formatDate, formatMoney } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string; success?: string }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const expenses = await prisma.expense.findMany({
     orderBy: [{ occurredAt: "desc" }],
     take: 12,
@@ -22,6 +27,9 @@ export default async function ExpensesPage() {
         description="Registra egresos operativos, compras, software, impuestos y otros costos."
       />
 
+      {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
+      {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard
           eyebrow="Nuevo egreso"
@@ -29,6 +37,7 @@ export default async function ExpensesPage() {
           description="Usa categorias claras para que el dashboard financiero tenga sentido."
         >
           <form action={createExpense} className="grid gap-4">
+            <input type="hidden" name="redirectTo" value="/egresos" />
             <div className={formGridClassName}>
               <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" className={inputClassName} /></Field>
               <Field label="Monto"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>

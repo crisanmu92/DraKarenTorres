@@ -9,6 +9,7 @@ import {
   SaleItemType,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 
@@ -102,24 +103,70 @@ function getId(formData: FormData) {
   return getRequiredString(formData, "id");
 }
 
-export async function createPatient(formData: FormData) {
-  await prisma.patient.create({
-    data: {
-      firstName: getRequiredString(formData, "firstName"),
-      lastName: getRequiredString(formData, "lastName"),
-      identification: getRequiredString(formData, "identification"),
-      phone: getRequiredString(formData, "phone"),
-      email: getOptionalString(formData, "email"),
-      birthDate: getOptionalDate(formData, "birthDate"),
-      allergies: getOptionalString(formData, "allergies"),
-      previousTreatments: getOptionalString(formData, "previousTreatments"),
-      importantNotes: getOptionalString(formData, "importantNotes"),
-      lastVisitAt: getOptionalDate(formData, "lastVisitAt"),
-      nextVisitAt: getOptionalDate(formData, "nextVisitAt"),
-    },
-  });
+function getRedirectTarget(formData: FormData, fallback: string) {
+  return getOptionalString(formData, "redirectTo") ?? fallback;
+}
 
-  finishMutation();
+function redirectWithMessage(path: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  redirect(`${path}?${searchParams.toString()}`);
+}
+
+function getFriendlyErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? error.meta?.target.join(",") : String(error.meta?.target ?? "");
+
+      if (target.includes("identification")) {
+        return "Ya existe un cliente con esa identificacion.";
+      }
+
+      if (target.includes("email")) {
+        return "Ese correo ya esta registrado.";
+      }
+
+      return "Ya existe un registro con esos datos.";
+    }
+
+    if (error.code === "P2003") {
+      return "La relacion seleccionada no es valida. Revisa cliente y concepto.";
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+export async function createPatient(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/pacientes");
+
+  try {
+    await prisma.patient.create({
+      data: {
+        firstName: getRequiredString(formData, "firstName"),
+        lastName: getRequiredString(formData, "lastName"),
+        identification: getRequiredString(formData, "identification"),
+        phone: getRequiredString(formData, "phone"),
+        email: getOptionalString(formData, "email"),
+        birthDate: getOptionalDate(formData, "birthDate"),
+        allergies: getOptionalString(formData, "allergies"),
+        previousTreatments: getOptionalString(formData, "previousTreatments"),
+        importantNotes: getOptionalString(formData, "importantNotes"),
+        lastVisitAt: getOptionalDate(formData, "lastVisitAt"),
+        nextVisitAt: getOptionalDate(formData, "nextVisitAt"),
+      },
+    });
+
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Cliente guardado correctamente." });
+  } catch (error) {
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar el cliente."),
+    });
+  }
 }
 
 export async function createSupplier(formData: FormData) {
@@ -184,40 +231,58 @@ export async function createSaleItem(formData: FormData) {
 }
 
 export async function createRevenue(formData: FormData) {
-  await prisma.revenue.create({
-    data: {
-      occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
-      amount: getRequiredDecimal(formData, "amount"),
-      paymentMethod: getEnumValue(
-        getRequiredString(formData, "paymentMethod"),
-        paymentMethods,
-        "paymentMethod",
-      ),
-      notes: getOptionalString(formData, "notes"),
-      patientId: getRequiredString(formData, "patientId"),
-      saleItemId: getRequiredString(formData, "saleItemId"),
-    },
-  });
+  const redirectTo = getRedirectTarget(formData, "/ingresos");
 
-  finishMutation();
+  try {
+    await prisma.revenue.create({
+      data: {
+        occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
+        amount: getRequiredDecimal(formData, "amount"),
+        paymentMethod: getEnumValue(
+          getRequiredString(formData, "paymentMethod"),
+          paymentMethods,
+          "paymentMethod",
+        ),
+        notes: getOptionalString(formData, "notes"),
+        patientId: getRequiredString(formData, "patientId"),
+        saleItemId: getRequiredString(formData, "saleItemId"),
+      },
+    });
+
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Ingreso guardado correctamente." });
+  } catch (error) {
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo registrar el ingreso."),
+    });
+  }
 }
 
 export async function createExpense(formData: FormData) {
-  await prisma.expense.create({
-    data: {
-      occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
-      amount: getRequiredDecimal(formData, "amount"),
-      category: getEnumValue(
-        getRequiredString(formData, "category"),
-        expenseCategories,
-        "category",
-      ),
-      description: getRequiredString(formData, "description"),
-      notes: getOptionalString(formData, "notes"),
-    },
-  });
+  const redirectTo = getRedirectTarget(formData, "/egresos");
 
-  finishMutation();
+  try {
+    await prisma.expense.create({
+      data: {
+        occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
+        amount: getRequiredDecimal(formData, "amount"),
+        category: getEnumValue(
+          getRequiredString(formData, "category"),
+          expenseCategories,
+          "category",
+        ),
+        description: getRequiredString(formData, "description"),
+        notes: getOptionalString(formData, "notes"),
+      },
+    });
+
+    finishMutation();
+    redirectWithMessage(redirectTo, { success: "Egreso guardado correctamente." });
+  } catch (error) {
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo registrar el egreso."),
+    });
+  }
 }
 
 export async function createInventoryMovement(formData: FormData) {

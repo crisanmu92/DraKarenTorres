@@ -1,14 +1,19 @@
 import { PaymentMethod } from "@prisma/client";
 
 import { createRevenue } from "@/app/actions";
-import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, textareaClassName } from "@/components/clinic/ui";
+import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function RevenuesPage() {
+export default async function RevenuesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string; success?: string }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const [patients, saleItems, revenues] = await Promise.all([
     prisma.patient.findMany({
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -33,6 +38,9 @@ export default async function RevenuesPage() {
         description="Registra cobros, ventas o servicios para mantener actualizada la caja."
       />
 
+      {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
+      {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
+
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <FormCard
           eyebrow="Nuevo ingreso"
@@ -40,6 +48,7 @@ export default async function RevenuesPage() {
           description="Relaciona cliente, concepto cobrado, medio de pago y monto."
         >
           <form action={createRevenue} className="grid gap-4">
+            <input type="hidden" name="redirectTo" value="/ingresos" />
             <div className={formGridClassName}>
               <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" className={inputClassName} /></Field>
               <Field label="Monto"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>

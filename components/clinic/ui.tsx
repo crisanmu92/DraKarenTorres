@@ -37,6 +37,25 @@ export function EmptyState({ children }: { children: ReactNode }) {
   );
 }
 
+export function Notice({
+  tone,
+  children,
+}: {
+  tone: "success" | "error";
+  children: ReactNode;
+}) {
+  const className =
+    tone === "success"
+      ? "border-[#b7ebc6] bg-[#f2fcf5] text-[#166534]"
+      : "border-[#f0c9c2] bg-[#fff5f3] text-[#b42318]";
+
+  return (
+    <div className={`rounded-3xl border px-4 py-4 text-sm font-medium ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export function FormCard({
   eyebrow,
   title,
