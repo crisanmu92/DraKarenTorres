@@ -546,17 +546,6 @@ export default async function Home() {
       ? (summary.balanceMonthTotal / summary.incomeMonthTotal) * 100
       : 0;
   const dailyBalance = incomeTodayTotal - expenseTodayTotal;
-  const navigationLinks = [
-    { href: "#resumen", label: "Resumen" },
-    { href: "#finanzas", label: "Utilidades y gastos" },
-    { href: "#pacientes", label: "Pacientes" },
-    { href: "#proveedores", label: "Proveedores" },
-    { href: "#productos", label: "Productos" },
-    { href: "#precios", label: "Items de venta" },
-    { href: "#ingresos", label: "Caja diaria" },
-    { href: "#egresos", label: "Gastos" },
-    { href: "#inventario", label: "Inventario" },
-  ];
 
   return (
     <main className="relative overflow-hidden">
@@ -566,15 +555,15 @@ export default async function Home() {
         <header className="grid gap-6 rounded-[36px] border border-white/80 bg-white/84 p-7 shadow-(--shadow-card) backdrop-blur md:grid-cols-[1.5fr_0.9fr] lg:p-10">
           <div className="space-y-5">
             <p className="text-xs font-semibold uppercase tracking-[0.36em] text-(--color-muted)">
-              Consultorio de Medicina Estetica
+              Sistema Privado del Consultorio
             </p>
             <div className="space-y-3">
               <h1 className="font-display text-5xl leading-none tracking-[-0.03em] text-(--color-ink) sm:text-6xl">
-                Operacion diaria con enfoque clinico y financiero.
+                Gestion diaria clara, privada y ordenada.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-(--color-muted) sm:text-lg">
-                Este dashboard resume el comportamiento del mes actual y ahora tambien permite
-                registrar pacientes, proveedores, catalogo, ingresos, egresos e inventario.
+                Desde esta pagina puedes llevar pacientes, caja, gastos, proveedores, materia
+                prima e inventario sin salir del sistema.
               </p>
             </div>
           </div>
@@ -586,11 +575,11 @@ export default async function Home() {
               description="Corte dinamico basado en la fecha del servidor. Ideal para flujo de caja mensual."
             />
             <OverviewPanel
-              title="Estado del sistema"
-              value={summary.warning ? "Revisar carga inicial" : "Captura habilitada"}
+              title="Estado"
+              value={summary.warning ? "Revisar base" : "Listo para registrar"}
               description={
                 summary.warning ??
-                "La base ya responde y la operacion puede cargarse desde esta misma vista."
+                "Todo esta preparado para registrar y consultar la operacion diaria."
               }
             />
           </div>
@@ -697,7 +686,7 @@ export default async function Home() {
 
               <article className="rounded-4xl border border-(--color-line) bg-[#f3eadf] p-5 text-(--color-ink) shadow-(--shadow-card)">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--color-muted)">
-                  Tu foco hoy
+                  Acciones recomendadas
                 </p>
                 <div className="mt-4 grid gap-3 text-sm leading-6 text-(--color-ink)">
                   <p>1. Registra pacientes y servicios primero.</p>
@@ -744,10 +733,10 @@ export default async function Home() {
         <section id="finanzas" className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <article className={sectionCardClassName}>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
-              Lectura financiera
+              Finanzas
             </p>
             <h2 className="mt-3 font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink)">
-              Utilidad y caja con mas detalle
+              Utilidad, caja y control del gasto
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-(--color-muted)">
               Esta utilidad es operativa: ingresos menos egresos registrados. Ya puedes seguir
@@ -886,21 +875,21 @@ export default async function Home() {
 
           <article className="rounded-4xl border border-(--color-line) bg-[#f4ebe1] p-7 text-(--color-ink) shadow-(--shadow-card)">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
-              Siguiente paso tecnico
+              Organizacion
             </p>
             <h2 className="mt-4 font-display text-4xl leading-none tracking-[-0.03em]">
-              Operar con captura estructurada.
+              Trabajo diario del consultorio.
             </h2>
             <p className="mt-4 text-sm leading-7 text-(--color-muted)">
-              Esta version ya permite empezar a cargar la operacion real del consultorio. La
-              siguiente capa razonable es autenticacion, edicion de registros y filtros por fecha.
+              Esta pagina ya te sirve como centro operativo. Lo siguiente razonable es busqueda
+              por nombre, filtros por fecha y reportes mas detallados.
             </p>
             <div className="mt-8 rounded-3xl border border-(--color-line) bg-white/70 p-5">
               <p className="text-sm font-semibold">Prioridades siguientes</p>
               <div className="mt-3 space-y-2 text-sm text-(--color-muted)">
-                <p>Acceso privado para el equipo.</p>
-                <p>Edicion y anulacion de registros.</p>
-                <p>Agenda, historia clinica y reportes por rango de fechas.</p>
+                <p>Busqueda rapida de pacientes.</p>
+                <p>Filtros por fecha para caja y gastos.</p>
+                <p>Agenda e historia clinica por paciente.</p>
               </div>
             </div>
           </article>
@@ -909,10 +898,10 @@ export default async function Home() {
         <section id="registro-operativo" className="grid gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--color-muted)">
-              Registro operativo
+              Modulos operativos
             </p>
             <h2 className="font-display text-4xl leading-none tracking-[-0.03em] text-(--color-ink)">
-              Alta de pacientes, catalogo y movimientos
+              Registro diario del consultorio
             </h2>
             <p className="max-w-3xl text-sm leading-7 text-(--color-muted)">
               Todos los formularios de abajo escriben directo en la base de datos de Supabase.
