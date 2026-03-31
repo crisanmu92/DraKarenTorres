@@ -502,10 +502,6 @@ export async function createSaleItem(formData: FormData) {
   const productId = getOptionalString(formData, "productId");
   const components = parseSaleItemComponents(formData);
 
-  if (type === SaleItemType.PRODUCT && !productId) {
-    throw new Error("Los items de tipo producto deben enlazarse a un producto.");
-  }
-
   try {
     await prisma.$transaction(async (tx) => {
       const saleItem = await tx.saleItem.create({
@@ -810,10 +806,6 @@ export async function updateSaleItem(formData: FormData) {
   const type = getEnumValue(getRequiredString(formData, "type"), saleItemTypes, "type");
   const productId = getOptionalString(formData, "productId");
   const components = parseSaleItemComponents(formData);
-
-  if (type === SaleItemType.PRODUCT && !productId) {
-    throw new Error("Los items de tipo producto deben enlazarse a un producto.");
-  }
 
   await prisma.$transaction(async (tx) => {
     await tx.saleItem.update({

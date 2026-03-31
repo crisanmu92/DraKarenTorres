@@ -2,18 +2,14 @@ import Link from "next/link";
 import { SaleItemType } from "@prisma/client";
 
 import { createSaleItem } from "@/app/actions";
-import { ServiceCostBuilder } from "@/components/clinic/service-cost-builder";
 import {
   Field,
   FormCard,
   SectionHeading,
   formGridClassName,
   inputClassName,
-  textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { toNumber } from "@/lib/clinic-format";
-import { prisma } from "@/lib/prisma";
 
 const saleItemTypeLabels: Record<SaleItemType, string> = {
   TREATMENT: "Tratamiento",
@@ -22,18 +18,7 @@ const saleItemTypeLabels: Record<SaleItemType, string> = {
 
 export const dynamic = "force-dynamic";
 
-export default async function NewServicePage() {
-  const rawProducts = await prisma.product.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, unit: true, costPrice: true },
-  });
-  const products = rawProducts.map((product) => ({
-    id: product.id,
-    name: product.name,
-    unit: product.unit,
-    costPrice: toNumber(product.costPrice),
-  }));
-
+export default function NewServicePage() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
@@ -48,13 +33,13 @@ export default async function NewServicePage() {
       <SectionHeading
         eyebrow="Nuevo servicio"
         title="Agregar servicio"
-        description="Define cuanto cobras, que productos del inventario usa y deja listo el calculo automatico de costo y utilidad."
+        description="En este formulario solo registras el nombre, el precio y el tipo del servicio."
       />
 
       <FormCard
-        eyebrow="Configuracion"
+        eyebrow="Formulario"
         title="Datos del servicio"
-        description="Si eliges productos del inventario, el sistema usara esas cantidades para calcular costos y descontar stock cada vez que el servicio se registre."
+        description="Guarda el servicio para dejarlo disponible al registrar atenciones."
       >
         <form action={createSaleItem} className="grid gap-4">
           <input type="hidden" name="redirectTo" value="/servicios" />
@@ -67,11 +52,12 @@ export default async function NewServicePage() {
                 ))}
               </select>
             </Field>
+            <Field label="Precio">
+              <input name="unitPrice" type="number" step="0.01" min="0" className={inputClassName} required />
+            </Field>
           </div>
-          <Field label="Descripcion"><textarea name="description" className={textareaClassName} /></Field>
-          <ServiceCostBuilder products={products} />
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-(--color-muted)">El costo se calculara automaticamente con base en los productos usados.</p>
+            <p className="text-sm text-(--color-muted)">Los demas datos no se muestran en este formulario.</p>
             <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
           </div>
         </form>
