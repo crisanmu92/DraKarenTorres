@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SaleItemType } from "@prisma/client";
 
 import { deleteSaleItem, updateSaleItem } from "@/app/actions";
+import { ServiceCostBuilder } from "@/components/clinic/service-cost-builder";
 import {
   EmptyState,
   Field,
@@ -21,8 +22,6 @@ const saleItemTypeLabels: Record<SaleItemType, string> = {
   PRODUCT: "Producto",
 };
 
-const componentSlots = [0, 1, 2, 3, 4];
-
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage({
@@ -35,6 +34,7 @@ export default async function ServicesPage({
     id: string;
     name: string;
     unit: string;
+    costPrice: number;
   }> = [];
   let saleItems: Array<{
     id: string;
@@ -57,7 +57,7 @@ export default async function ServicesPage({
     [products, saleItems] = await Promise.all([
       prisma.product.findMany({
         orderBy: { name: "asc" },
-        select: { id: true, name: true, unit: true },
+        select: { id: true, name: true, unit: true, costPrice: true },
       }),
       prisma.saleItem.findMany({
         include: {
@@ -78,6 +78,14 @@ export default async function ServicesPage({
         orderBy: [{ createdAt: "desc" }],
         take: 24,
       }),
+    ]).then(([productRows, serviceRows]) => [
+      productRows.map((product) => ({
+        id: product.id,
+        name: product.name,
+        unit: product.unit,
+        costPrice: toNumber(product.costPrice),
+      })),
+      serviceRows,
     ]);
   } catch {
     pageError = "No se pudo cargar la informacion de servicios.";
@@ -167,54 +175,18 @@ export default async function ServicesPage({
                               ))}
                             </select>
                           </Field>
-                          <Field label="Cuanto cobras por este servicio">
-                            <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={String(item.unitPrice)} className={inputClassName} required />
-                          </Field>
-                          <Field label="Costo base alterno">
-                            <input name="baseCost" type="number" step="0.01" min="0" defaultValue={item.baseCost == null ? "" : String(item.baseCost)} className={inputClassName} />
-                          </Field>
-                          <Field label="Producto relacionado">
-                            <select name="productId" defaultValue={item.product?.id ?? ""} className={inputClassName}>
-                              <option value="">Sin producto relacionado</option>
-                              {products.map((product) => (
-                                <option key={product.id} value={product.id}>{product.name}</option>
-                              ))}
-                            </select>
-                          </Field>
                         </div>
                         <Field label="Descripcion"><textarea name="description" defaultValue={item.description ?? ""} className={textareaClassName} /></Field>
-                        <div className="grid gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Productos usados del inventario</p>
-                          {componentSlots.map((slot) => {
-                            const component = item.components[slot];
-
-                            return (
-                              <div key={slot} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-                                <select
-                                  name={`componentProductId_${slot}`}
-                                  defaultValue={component?.productId ?? ""}
-                                  className={inputClassName}
-                                >
-                                  <option value="">Sin producto</option>
-                                  {products.map((product) => (
-                                    <option key={product.id} value={product.id}>
-                                      {product.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  name={`componentQuantity_${slot}`}
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  defaultValue={component ? String(component.quantity) : ""}
-                                  placeholder="Cantidad"
-                                  className={inputClassName}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <ServiceCostBuilder
+                          products={products}
+                          unitPriceDefault={String(item.unitPrice)}
+                          baseCostDefault={item.baseCost == null ? "" : String(item.baseCost)}
+                          relatedProductIdDefault={item.product?.id ?? ""}
+                          componentsDefault={item.components.map((component) => ({
+                            productId: component.productId,
+                            quantity: String(component.quantity),
+                          }))}
+                        />
                         <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
                       </form>
                       <form action={deleteSaleItem}>

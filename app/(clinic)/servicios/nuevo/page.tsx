@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SaleItemType } from "@prisma/client";
 
 import { createSaleItem } from "@/app/actions";
+import { ServiceCostBuilder } from "@/components/clinic/service-cost-builder";
 import {
   Field,
   FormCard,
@@ -11,6 +12,7 @@ import {
   textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 const saleItemTypeLabels: Record<SaleItemType, string> = {
@@ -18,15 +20,19 @@ const saleItemTypeLabels: Record<SaleItemType, string> = {
   PRODUCT: "Producto",
 };
 
-const componentSlots = [0, 1, 2, 3, 4];
-
 export const dynamic = "force-dynamic";
 
 export default async function NewServicePage() {
-  const products = await prisma.product.findMany({
+  const rawProducts = await prisma.product.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, unit: true, costPrice: true },
   });
+  const products = rawProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    unit: product.unit,
+    costPrice: toNumber(product.costPrice),
+  }));
 
   return (
     <>
@@ -61,45 +67,9 @@ export default async function NewServicePage() {
                 ))}
               </select>
             </Field>
-            <Field label="Cuanto cobras por este servicio">
-              <input name="unitPrice" type="number" step="0.01" min="0" className={inputClassName} required />
-            </Field>
-            <Field label="Costo base alterno">
-              <input name="baseCost" type="number" step="0.01" min="0" className={inputClassName} />
-            </Field>
-            <Field label="Producto relacionado">
-              <select name="productId" className={inputClassName} defaultValue="">
-                <option value="">Sin producto relacionado</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>{product.name}</option>
-                ))}
-              </select>
-            </Field>
           </div>
           <Field label="Descripcion"><textarea name="description" className={textareaClassName} /></Field>
-          <div className="grid gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Productos usados del inventario</p>
-            {componentSlots.map((slot) => (
-              <div key={slot} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-                <select name={`componentProductId_${slot}`} defaultValue="" className={inputClassName}>
-                  <option value="">Sin producto</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  name={`componentQuantity_${slot}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Cantidad"
-                  className={inputClassName}
-                />
-              </div>
-            ))}
-          </div>
+          <ServiceCostBuilder products={products} />
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-(--color-muted)">El costo se calculara automaticamente con base en los productos usados.</p>
             <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
