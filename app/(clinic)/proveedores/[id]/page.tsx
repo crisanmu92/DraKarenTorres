@@ -26,6 +26,8 @@ const inventoryUnitLabels: Record<InventoryUnit, string> = {
   MG: "Mg",
 };
 
+const helperTextClassName = "min-h-[3rem] text-xs leading-5 text-(--color-muted)";
+
 export const dynamic = "force-dynamic";
 
 export default async function SupplierDetailPage({
@@ -149,23 +151,38 @@ export default async function SupplierDetailPage({
                 <input type="hidden" name="supplierId" value={supplier.id} />
                 <input type="hidden" name="redirectTo" value={`/proveedores/${supplier.id}`} />
                 <div className={formGridClassName}>
-                  <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
-                  <Field label="Unidad" hint="Usa Jeringa, Ml, Mg, Caja, Vial o Unidad segun la compra.">
-                    <select name="unit" className={inputClassName} defaultValue="UNIT" required>
-                      {Object.values(InventoryUnit).map((unit) => (
-                        <option key={unit} value={unit}>
-                          {inventoryUnitLabels[unit]}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Cantidad comprada" hint="Si compras una caja, pon aqui cuantas unidades, ml o mg trae en total.">
-                    <input name="stockQuantity" type="number" step="0.01" min="0.01" className={inputClassName} required />
-                  </Field>
-                  <Field label="Valor total pagado" hint="El sistema calcula el costo unitario automaticamente con base en la cantidad.">
-                    <input name="totalPurchaseAmount" type="number" step="0.01" min="0" className={inputClassName} required />
-                  </Field>
-                  <Field label="Vence"><input name="expiresAt" type="date" className={inputClassName} /></Field>
+                  <div className="grid gap-2">
+                    <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
+                    <p className={helperTextClassName} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Field label="Unidad">
+                      <select name="unit" className={inputClassName} defaultValue="UNIT" required>
+                        {Object.values(InventoryUnit).map((unit) => (
+                          <option key={unit} value={unit}>
+                            {inventoryUnitLabels[unit]}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <p className={helperTextClassName}>Usa Jeringa, Ml, Mg, Caja, Vial o Unidad segun la compra.</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Field label="Cantidad comprada">
+                      <input name="stockQuantity" type="number" step="0.01" min="0.01" className={inputClassName} required />
+                    </Field>
+                    <p className={helperTextClassName}>Si compras una caja, pon aqui cuantas unidades, ml o mg trae en total.</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Field label="Valor total pagado">
+                      <input name="totalPurchaseAmount" type="number" step="0.01" min="0" className={inputClassName} required />
+                    </Field>
+                    <p className={helperTextClassName}>El sistema calcula el costo unitario automaticamente con base en la cantidad.</p>
+                  </div>
+                  <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
+                    <Field label="Vence"><input name="expiresAt" type="date" className={inputClassName} /></Field>
+                    <p className={helperTextClassName} />
+                  </div>
                 </div>
                 <Field label="Descripcion" hint="Aqui puedes dejar el peso, los ml, la referencia o cualquier detalle adicional de la presentacion.">
                   <textarea name="description" className={textareaClassName} />
