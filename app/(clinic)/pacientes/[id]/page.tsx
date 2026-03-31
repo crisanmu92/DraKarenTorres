@@ -25,6 +25,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+const inventorySlots = 5;
 
 export default async function PatientDetailPage({
   params,
@@ -55,6 +56,10 @@ export default async function PatientDetailPage({
       notes: string | null;
       patientId: string;
       saleItemId: string;
+      inventoryUsages: Array<{
+        productId: string;
+        quantity: unknown;
+      }>;
       saleItem: { name: string };
     }>;
   } | null = null;
@@ -64,10 +69,16 @@ export default async function PatientDetailPage({
     unitPrice: unknown;
     baseCost: unknown;
   }> = [];
+  let products: Array<{
+    id: string;
+    name: string;
+    unit: string;
+    costPrice: unknown;
+  }> = [];
   let pageError: string | null = null;
 
   try {
-    [patient, saleItems] = await Promise.all([
+    [patient, saleItems, products] = await Promise.all([
       prisma.patient.findUnique({
         where: { id },
         select: {
@@ -80,7 +91,16 @@ export default async function PatientDetailPage({
           nextVisitAt: true,
           importantNotes: true,
           revenues: {
-            include: { saleItem: { select: { name: true } } },
+            include: {
+              saleItem: { select: { name: true } },
+              inventoryUsages: {
+                select: {
+                  productId: true,
+                  quantity: true,
+                },
+                orderBy: [{ createdAt: "asc" }],
+              },
+            },
             orderBy: [{ occurredAt: "desc" }],
             take: 20,
           },
@@ -89,6 +109,11 @@ export default async function PatientDetailPage({
       prisma.saleItem.findMany({
         orderBy: { name: "asc" },
         select: { id: true, name: true, unitPrice: true, baseCost: true },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, unit: true, costPrice: true },
       }),
     ]);
   } catch {
@@ -195,6 +220,40 @@ export default async function PatientDetailPage({
                     </select>
                   </Field>
                 </div>
+                <div className="grid gap-4 rounded-[28px] border border-(--color-line) bg-[#fcfaf7] p-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Suministros del inventario</p>
+                    <p className="mt-2 text-sm leading-6 text-(--color-muted)">
+                      Si eliges suministros aqui, se usaran para esta atencion y se descontaran del inventario. Si lo dejas vacio, se usan los insumos por defecto del servicio.
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    {Array.from({ length: inventorySlots }, (_, index) => (
+                      <div key={index} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                        <Field label={`Suministro ${index + 1}`}>
+                          <select name={`componentProductId_${index}`} className={inputClassName}>
+                            <option value="">Sin producto</option>
+                            {products.map((product) => (
+                              <option key={product.id} value={product.id}>
+                                {product.name} · {product.unit.toLowerCase()} · costo unidad {formatMoney(product.costPrice)}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Cantidad usada">
+                          <input
+                            name={`componentQuantity_${index}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className={inputClassName}
+                            placeholder="Cantidad"
+                          />
+                        </Field>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <Field label="Notas"><textarea name="notes" className={textareaClassName} /></Field>
                 <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
               </form>
@@ -255,8 +314,8 @@ export default async function PatientDetailPage({
                                 className={inputClassName}
                               />
                             </Field>
-                            <Field label="Medio de pago">
-                              <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
+                          <Field label="Medio de pago">
+                            <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
                                 {Object.values(PaymentMethod).map((method) => (
                                   <option key={method} value={method}>
                                     {paymentMethodLabels[method]}
@@ -264,6 +323,49 @@ export default async function PatientDetailPage({
                                 ))}
                               </select>
                             </Field>
+                          </div>
+                          <div className="grid gap-4 rounded-[28px] border border-(--color-line) bg-[#fcfaf7] p-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Suministros del inventario</p>
+                              <p className="mt-2 text-sm leading-6 text-(--color-muted)">
+                                Si cambias estos valores, el sistema actualiza el costo real y vuelve a descontar el inventario con esos suministros.
+                              </p>
+                            </div>
+                            <div className="grid gap-3">
+                              {Array.from({ length: inventorySlots }, (_, index) => {
+                                const usage = revenue.inventoryUsages[index];
+
+                                return (
+                                  <div key={index} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                                    <Field label={`Suministro ${index + 1}`}>
+                                      <select
+                                        name={`componentProductId_${index}`}
+                                        defaultValue={usage?.productId ?? ""}
+                                        className={inputClassName}
+                                      >
+                                        <option value="">Sin producto</option>
+                                        {products.map((product) => (
+                                          <option key={product.id} value={product.id}>
+                                            {product.name} · {product.unit.toLowerCase()} · costo unidad {formatMoney(product.costPrice)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </Field>
+                                    <Field label="Cantidad usada">
+                                      <input
+                                        name={`componentQuantity_${index}`}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        defaultValue={usage ? String(usage.quantity) : ""}
+                                        className={inputClassName}
+                                        placeholder="Cantidad"
+                                      />
+                                    </Field>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                           <Field label="Notas"><textarea name="notes" defaultValue={revenue.notes ?? ""} className={textareaClassName} /></Field>
                           <input type="hidden" name="patientId" value={patient.id} />

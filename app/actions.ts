@@ -96,7 +96,7 @@ function aggregateQuantitiesByProduct<T extends { productId: string; quantity: P
   return totals;
 }
 
-function parseSaleItemComponents(formData: FormData) {
+function parseInventoryComponents(formData: FormData) {
   const components: Array<{ productId: string; quantity: Prisma.Decimal }> = [];
 
   for (let index = 0; index < serviceComponentSlots; index += 1) {
@@ -157,24 +157,55 @@ async function syncSaleItemComponents(
   });
 }
 
-async function getSaleItemInventoryCost(
+async function getResolvedInventoryCost(
   tx: Prisma.TransactionClient,
   saleItemId: string,
+  overrideComponents?: Array<{ productId: string; quantity: Prisma.Decimal }>,
 ) {
-  const components = await tx.saleItemComponent.findMany({
-    where: { saleItemId },
-    select: {
-      productId: true,
-      quantity: true,
-      product: {
-        select: {
-          name: true,
-          stockQuantity: true,
-          costPrice: true,
-        },
-      },
-    },
-  });
+  const components =
+    overrideComponents && overrideComponents.length > 0
+      ? await tx.product
+          .findMany({
+            where: { id: { in: overrideComponents.map((component) => component.productId) } },
+            select: {
+              id: true,
+              name: true,
+              stockQuantity: true,
+              costPrice: true,
+            },
+          })
+          .then((products) => {
+            const productMap = new Map(products.map((product) => [product.id, product]));
+
+            return overrideComponents.map((component) => {
+              const product = productMap.get(component.productId);
+
+              if (!product) {
+                throw new Error("Uno de los suministros seleccionados no existe en inventario.");
+              }
+
+              return {
+                productId: component.productId,
+                quantity: component.quantity,
+                product,
+              };
+            });
+          })
+      : await tx.saleItemComponent.findMany({
+          where: { saleItemId },
+          select: {
+            productId: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                stockQuantity: true,
+                costPrice: true,
+              },
+            },
+          },
+        });
 
   if (components.length === 0) {
     return { components: [], totalCost: undefined as Prisma.Decimal | undefined };
@@ -198,8 +229,9 @@ async function applyRevenueInventoryUsage(
   tx: Prisma.TransactionClient,
   revenueId: string,
   saleItemId: string,
+  overrideComponents?: Array<{ productId: string; quantity: Prisma.Decimal }>,
 ) {
-  const { components, totalCost } = await getSaleItemInventoryCost(tx, saleItemId);
+  const { components, totalCost } = await getResolvedInventoryCost(tx, saleItemId, overrideComponents);
 
   if (components.length === 0) {
     return undefined;
@@ -501,7 +533,7 @@ export async function createSaleItem(formData: FormData) {
     "type",
   );
   const productId = getOptionalString(formData, "productId");
-  const components = parseSaleItemComponents(formData);
+  const components = parseInventoryComponents(formData);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -539,6 +571,7 @@ export async function createRevenue(formData: FormData) {
     const saleItemId = getRequiredString(formData, "saleItemId");
     const manualCost = getOptionalDecimal(formData, "costAmount");
     const discountAmount = getOptionalDecimal(formData, "discountAmount");
+    const inventoryComponents = parseInventoryComponents(formData);
     await prisma.$transaction(async (tx) => {
       const saleItem = await tx.saleItem.findUnique({
         where: { id: saleItemId },
@@ -562,7 +595,7 @@ export async function createRevenue(formData: FormData) {
         },
       });
 
-      const inventoryCost = await applyRevenueInventoryUsage(tx, revenue.id, saleItemId);
+      const inventoryCost = await applyRevenueInventoryUsage(tx, revenue.id, saleItemId, inventoryComponents);
       const resolvedCost = inventoryCost ?? manualCost ?? saleItem?.baseCost ?? undefined;
 
       await tx.revenue.update({
@@ -808,7 +841,7 @@ export async function updateSaleItem(formData: FormData) {
   const id = getId(formData);
   const type = getEnumValue(getRequiredString(formData, "type"), saleItemTypes, "type");
   const productId = getOptionalString(formData, "productId");
-  const components = parseSaleItemComponents(formData);
+  const components = parseInventoryComponents(formData);
 
   await prisma.$transaction(async (tx) => {
     await tx.saleItem.update({
@@ -853,6 +886,7 @@ export async function updateRevenue(formData: FormData) {
   const manualCost = getOptionalDecimal(formData, "costAmount");
   const discountAmount = getOptionalDecimal(formData, "discountAmount");
   const revenueId = getId(formData);
+  const inventoryComponents = parseInventoryComponents(formData);
 
   await prisma.$transaction(async (tx) => {
     const saleItem = await tx.saleItem.findUnique({
@@ -862,7 +896,7 @@ export async function updateRevenue(formData: FormData) {
 
     await restoreRevenueInventoryUsage(tx, [revenueId]);
 
-    const inventoryCost = await applyRevenueInventoryUsage(tx, revenueId, saleItemId);
+    const inventoryCost = await applyRevenueInventoryUsage(tx, revenueId, saleItemId, inventoryComponents);
     const resolvedCost = inventoryCost ?? manualCost ?? saleItem?.baseCost ?? undefined;
 
     await tx.revenue.update({
