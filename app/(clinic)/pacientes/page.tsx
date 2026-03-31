@@ -1,7 +1,9 @@
+import { PaymentMethod } from "@prisma/client";
+
 import { createPatient, deletePatient, updatePatient } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateInput } from "@/lib/clinic-format";
+import { formatDate, formatDateInput, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,23 +16,35 @@ export default async function PatientsPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = resolvedSearchParams?.q?.trim() ?? "";
   let patients: Awaited<ReturnType<typeof prisma.patient.findMany>> = [];
+  let saleItems: Array<{
+    id: string;
+    name: string;
+    unitPrice: unknown;
+    baseCost: unknown;
+  }> = [];
   let pageError: string | null = null;
 
   try {
-    patients = await prisma.patient.findMany({
-      where: query
-        ? {
-            OR: [
-              { firstName: { contains: query, mode: "insensitive" } },
-              { lastName: { contains: query, mode: "insensitive" } },
-              { identification: { contains: query, mode: "insensitive" } },
-              { phone: { contains: query, mode: "insensitive" } },
-            ],
-          }
-        : undefined,
-      orderBy: [{ createdAt: "desc" }],
-      take: 24,
-    });
+    [patients, saleItems] = await Promise.all([
+      prisma.patient.findMany({
+        where: query
+          ? {
+              OR: [
+                { firstName: { contains: query, mode: "insensitive" } },
+                { lastName: { contains: query, mode: "insensitive" } },
+                { identification: { contains: query, mode: "insensitive" } },
+                { phone: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : undefined,
+        orderBy: [{ createdAt: "desc" }],
+        take: 24,
+      }),
+      prisma.saleItem.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, unitPrice: true, baseCost: true },
+      }),
+    ]);
   } catch {
     pageError = "No se pudo cargar la base de pacientes en este momento.";
   }
@@ -51,7 +65,7 @@ export default async function PatientsPage({
         <FormCard
           eyebrow="Nuevo registro"
           title="Agregar cliente"
-          description="Guarda datos de contacto, notas relevantes y fechas de seguimiento."
+          description="Guarda la ficha del cliente y, si quieres, registra de una vez el servicio realizado, lo cobrado y sus costos."
         >
           <form action={createPatient} className="grid gap-4">
             <input type="hidden" name="redirectTo" value="/pacientes" />
@@ -68,6 +82,44 @@ export default async function PatientsPage({
             <Field label="Alergias"><textarea name="allergies" className={textareaClassName} /></Field>
             <Field label="Historial o servicios previos"><textarea name="previousTreatments" className={textareaClassName} /></Field>
             <Field label="Notas importantes"><textarea name="importantNotes" className={textareaClassName} /></Field>
+            <div className="rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-muted)">Servicio inicial opcional</p>
+              <div className="mt-4 grid gap-4">
+                <div className={formGridClassName}>
+                  <Field label="Servicio a realizar">
+                    <select name="saleItemId" className={inputClassName} defaultValue="">
+                      <option value="">Sin servicio inicial</option>
+                      {saleItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Fecha y hora del servicio">
+                    <input name="revenueOccurredAt" type="datetime-local" className={inputClassName} />
+                  </Field>
+                  <Field label="Cuanto le cobraste">
+                    <input name="amount" type="number" step="0.01" min="0" className={inputClassName} />
+                  </Field>
+                  <Field label="Cuantos fueron los costos">
+                    <input name="costAmount" type="number" step="0.01" min="0" className={inputClassName} />
+                  </Field>
+                  <Field label="Medio de pago">
+                    <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER">
+                      {Object.values(PaymentMethod).map((method) => (
+                        <option key={method} value={method}>
+                          {paymentMethodLabels[method]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Notas del servicio o del cobro">
+                  <textarea name="revenueNotes" className={textareaClassName} />
+                </Field>
+              </div>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-(--color-muted)">{patients.length} clientes visibles en esta lista.</p>
               <SubmitButton label="Guardar cliente" pendingLabel="Guardando cliente..." />

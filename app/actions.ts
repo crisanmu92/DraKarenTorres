@@ -161,24 +161,68 @@ export async function createPatient(formData: FormData) {
   const redirectTo = getRedirectTarget(formData, "/pacientes");
 
   try {
-    await prisma.patient.create({
-      data: {
-        firstName: getRequiredString(formData, "firstName"),
-        lastName: getRequiredString(formData, "lastName"),
-        identification: getRequiredString(formData, "identification"),
-        phone: getRequiredString(formData, "phone"),
-        email: getOptionalString(formData, "email"),
-        birthDate: getOptionalDate(formData, "birthDate"),
-        allergies: getOptionalString(formData, "allergies"),
-        previousTreatments: getOptionalString(formData, "previousTreatments"),
-        importantNotes: getOptionalString(formData, "importantNotes"),
-        lastVisitAt: getOptionalDate(formData, "lastVisitAt"),
-        nextVisitAt: getOptionalDate(formData, "nextVisitAt"),
-      },
+    const saleItemId = getOptionalString(formData, "saleItemId");
+    const amountValue = getOptionalString(formData, "amount");
+    const costValue = getOptionalString(formData, "costAmount");
+    const revenueOccurredAt = getOptionalDate(formData, "revenueOccurredAt");
+    const revenueNotes = getOptionalString(formData, "revenueNotes");
+    const hasRevenueIntent = Boolean(saleItemId || amountValue || costValue || revenueOccurredAt || revenueNotes);
+
+    if (hasRevenueIntent && !saleItemId) {
+      throw new Error("Selecciona el servicio si quieres registrar el cobro inicial.");
+    }
+
+    if (hasRevenueIntent && !amountValue) {
+      throw new Error("Escribe cuanto cobraste por el servicio.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.create({
+        data: {
+          firstName: getRequiredString(formData, "firstName"),
+          lastName: getRequiredString(formData, "lastName"),
+          identification: getRequiredString(formData, "identification"),
+          phone: getRequiredString(formData, "phone"),
+          email: getOptionalString(formData, "email"),
+          birthDate: getOptionalDate(formData, "birthDate"),
+          allergies: getOptionalString(formData, "allergies"),
+          previousTreatments: getOptionalString(formData, "previousTreatments"),
+          importantNotes: getOptionalString(formData, "importantNotes"),
+          lastVisitAt: getOptionalDate(formData, "lastVisitAt"),
+          nextVisitAt: getOptionalDate(formData, "nextVisitAt"),
+        },
+      });
+
+      if (hasRevenueIntent && saleItemId && amountValue) {
+        const saleItem = await tx.saleItem.findUnique({
+          where: { id: saleItemId },
+          select: { baseCost: true },
+        });
+
+        await tx.revenue.create({
+          data: {
+            occurredAt: revenueOccurredAt ?? new Date(),
+            amount: getRequiredDecimal(formData, "amount"),
+            costAmount: getOptionalDecimal(formData, "costAmount") ?? saleItem?.baseCost ?? undefined,
+            paymentMethod: getEnumValue(
+              getRequiredString(formData, "paymentMethod"),
+              paymentMethods,
+              "paymentMethod",
+            ),
+            notes: revenueNotes,
+            patientId: patient.id,
+            saleItemId,
+          },
+        });
+      }
     });
 
     finishMutation();
-    redirectWithMessage(redirectTo, { success: "Cliente guardado correctamente." });
+    redirectWithMessage(redirectTo, {
+      success: hasRevenueIntent
+        ? "Cliente y servicio inicial guardados correctamente."
+        : "Cliente guardado correctamente.",
+    });
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
