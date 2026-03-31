@@ -1,10 +1,49 @@
-import { PaymentMethod } from "@prisma/client";
+import Link from "next/link";
 
 import { createPatient, deletePatient, updatePatient } from "@/app/actions";
-import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
+import {
+  EmptyState,
+  Field,
+  FormCard,
+  Notice,
+  SectionHeading,
+  formGridClassName,
+  inputClassName,
+  textareaClassName,
+} from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateInput, formatMoney, paymentMethodLabels } from "@/lib/clinic-format";
+import { formatDate, formatDateInput, formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
+
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.25 12s3.75-6 9.75-6 9.75 6 9.75 6-3.75 6-9.75 6-9.75-6-9.75-6Z" />
+      <circle cx="12" cy="12" r="2.25" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3.75 20.25 4.5-1.125L19.5 7.875 16.125 4.5 4.875 15.75 3.75 20.25Z" />
+      <path d="m14.625 6 3.375 3.375" />
+      <path d="M3.75 20.25h16.5" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 7.5h15" />
+      <path d="M9.75 3.75h4.5l.75 1.5h3.75v15A1.5 1.5 0 0 1 17.25 21.75H6.75A1.5 1.5 0 0 1 5.25 20.25v-15H9Z" />
+      <path d="M9.75 11.25v5.25" />
+      <path d="M14.25 11.25v5.25" />
+    </svg>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -15,36 +54,59 @@ export default async function PatientsPage({
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = resolvedSearchParams?.q?.trim() ?? "";
-  let patients: Awaited<ReturnType<typeof prisma.patient.findMany>> = [];
-  let saleItems: Array<{
+  let patients: Array<{
     id: string;
-    name: string;
-    unitPrice: unknown;
-    baseCost: unknown;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    identification: string;
+    email: string | null;
+    birthDate: Date | null;
+    allergies: string | null;
+    previousTreatments: string | null;
+    importantNotes: string | null;
+    lastVisitAt: Date | null;
+    nextVisitAt: Date | null;
+    revenues: Array<{ id: string; amount: unknown; costAmount: unknown }>;
   }> = [];
   let pageError: string | null = null;
 
   try {
-    [patients, saleItems] = await Promise.all([
-      prisma.patient.findMany({
-        where: query
-          ? {
-              OR: [
-                { firstName: { contains: query, mode: "insensitive" } },
-                { lastName: { contains: query, mode: "insensitive" } },
-                { identification: { contains: query, mode: "insensitive" } },
-                { phone: { contains: query, mode: "insensitive" } },
-              ],
-            }
-          : undefined,
-        orderBy: [{ createdAt: "desc" }],
-        take: 24,
-      }),
-      prisma.saleItem.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, unitPrice: true, baseCost: true },
-      }),
-    ]);
+    patients = await prisma.patient.findMany({
+      where: query
+        ? {
+            OR: [
+              { firstName: { contains: query, mode: "insensitive" } },
+              { lastName: { contains: query, mode: "insensitive" } },
+              { identification: { contains: query, mode: "insensitive" } },
+              { phone: { contains: query, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
+      orderBy: [{ createdAt: "desc" }],
+      take: 40,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        identification: true,
+        email: true,
+        birthDate: true,
+        allergies: true,
+        previousTreatments: true,
+        importantNotes: true,
+        lastVisitAt: true,
+        nextVisitAt: true,
+        revenues: {
+          select: {
+            id: true,
+            amount: true,
+            costAmount: true,
+          },
+        },
+      },
+    });
   } catch {
     pageError = "No se pudo cargar la base de pacientes en este momento.";
   }
@@ -52,20 +114,20 @@ export default async function PatientsPage({
   return (
     <>
       <SectionHeading
-        eyebrow="Clientes"
-        title="Base de clientes"
-        description="Aqui registras y consultas la ficha inicial de tus clientes."
+        eyebrow="Pacientes"
+        title="Lista de pacientes"
+        description="Consulta tu base de pacientes en formato lista y entra a cada ficha para agregar los servicios realizados."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
       {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-4">
         <FormCard
-          eyebrow="Nuevo registro"
-          title="Agregar cliente"
-          description="Guarda la ficha del cliente y, si quieres, registra de una vez el servicio realizado, lo cobrado y sus costos."
+          eyebrow="Nuevo paciente"
+          title="Agregar paciente"
+          description="Primero registra la ficha. Los servicios realizados se agregan luego dentro de cada paciente."
         >
           <form action={createPatient} className="grid gap-4">
             <input type="hidden" name="redirectTo" value="/pacientes" />
@@ -82,57 +144,19 @@ export default async function PatientsPage({
             <Field label="Alergias"><textarea name="allergies" className={textareaClassName} /></Field>
             <Field label="Historial o servicios previos"><textarea name="previousTreatments" className={textareaClassName} /></Field>
             <Field label="Notas importantes"><textarea name="importantNotes" className={textareaClassName} /></Field>
-            <div className="rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-muted)">Servicio inicial opcional</p>
-              <div className="mt-4 grid gap-4">
-                <div className={formGridClassName}>
-                  <Field label="Servicio a realizar">
-                    <select name="saleItemId" className={inputClassName} defaultValue="">
-                      <option value="">Sin servicio inicial</option>
-                      {saleItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Fecha y hora del servicio">
-                    <input name="revenueOccurredAt" type="datetime-local" className={inputClassName} />
-                  </Field>
-                  <Field label="Cuanto le cobraste">
-                    <input name="amount" type="number" step="0.01" min="0" className={inputClassName} />
-                  </Field>
-                  <Field label="Cuantos fueron los costos">
-                    <input name="costAmount" type="number" step="0.01" min="0" className={inputClassName} />
-                  </Field>
-                  <Field label="Medio de pago">
-                    <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER">
-                      {Object.values(PaymentMethod).map((method) => (
-                        <option key={method} value={method}>
-                          {paymentMethodLabels[method]}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                <Field label="Notas del servicio o del cobro">
-                  <textarea name="revenueNotes" className={textareaClassName} />
-                </Field>
-              </div>
-            </div>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-(--color-muted)">{patients.length} clientes visibles en esta lista.</p>
-              <SubmitButton label="Guardar cliente" pendingLabel="Guardando cliente..." />
+              <p className="text-sm text-(--color-muted)">Los servicios ya no se cargan en este formulario.</p>
+              <SubmitButton label="Guardar paciente" pendingLabel="Guardando paciente..." />
             </div>
           </form>
         </FormCard>
 
         <FormCard
           eyebrow="Listado"
-          title="Clientes recientes"
-          description="Busca por nombre, apellido, identificacion o telefono para encontrar clientes mas rapido."
+          title="Pacientes registrados"
+          description="Usa la accion ver para abrir la ficha del paciente y agregarle los servicios realizados."
         >
-          <form method="GET" className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <form method="GET" className="mb-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
             <input
               type="search"
               name="q"
@@ -154,49 +178,90 @@ export default async function PatientsPage({
             </a>
           </form>
 
-          <div className="grid gap-3">
-            {patients.length === 0 ? (
-              <EmptyState>
-                {query ? "No se encontraron pacientes con esa busqueda." : "Aun no hay clientes registrados."}
-              </EmptyState>
-            ) : (
-              patients.map((patient) => (
-                <div key={patient.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="font-semibold text-(--color-ink)">{patient.firstName} {patient.lastName}</p>
-                  <p className="mt-1 text-sm text-(--color-muted)">{patient.identification} · {patient.phone}</p>
-                  <p className="mt-2 text-sm text-(--color-muted)">Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
-                  <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                      Editar o eliminar
-                    </summary>
-                    <div className="mt-4 grid gap-4">
-                      <form action={updatePatient} className="grid gap-4">
-                        <input type="hidden" name="id" value={patient.id} />
-                        <div className={formGridClassName}>
-                          <Field label="Nombres"><input name="firstName" defaultValue={patient.firstName} className={inputClassName} required /></Field>
-                          <Field label="Apellidos"><input name="lastName" defaultValue={patient.lastName} className={inputClassName} required /></Field>
-                          <Field label="Identificacion"><input name="identification" defaultValue={patient.identification} className={inputClassName} required /></Field>
-                          <Field label="Telefono"><input name="phone" defaultValue={patient.phone} className={inputClassName} required /></Field>
-                          <Field label="Correo"><input name="email" type="email" defaultValue={patient.email ?? ""} className={inputClassName} /></Field>
-                          <Field label="Fecha de nacimiento"><input name="birthDate" type="date" defaultValue={formatDateInput(patient.birthDate)} className={inputClassName} /></Field>
-                          <Field label="Ultima visita"><input name="lastVisitAt" type="date" defaultValue={formatDateInput(patient.lastVisitAt)} className={inputClassName} /></Field>
-                          <Field label="Proximo seguimiento"><input name="nextVisitAt" type="date" defaultValue={formatDateInput(patient.nextVisitAt)} className={inputClassName} /></Field>
+          {patients.length === 0 ? (
+            <EmptyState>
+              {query ? "No se encontraron pacientes con esa busqueda." : "Aun no hay pacientes registrados."}
+            </EmptyState>
+          ) : (
+            <div className="overflow-hidden rounded-[28px] border border-(--color-line)">
+              <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.8fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_180px] md:gap-4">
+                <p>Nombre</p>
+                <p>Telefono</p>
+                <p>Servicios hechos</p>
+                <p>Total cobrado</p>
+                <p>Acciones</p>
+              </div>
+              <div className="divide-y divide-(--color-line)">
+                {patients.map((patient) => {
+                  const fullName = `${patient.firstName} ${patient.lastName}`;
+                  const totalCharged = patient.revenues.reduce((sum, revenue) => sum + toNumber(revenue.amount), 0);
+
+                  return (
+                    <div key={patient.id} className="bg-white">
+                      <div className="grid gap-3 px-4 py-5 md:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.8fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_180px] md:items-center md:gap-4">
+                        <div>
+                          <p className="font-semibold text-(--color-ink)">{fullName}</p>
+                          <p className="mt-1 text-sm text-(--color-muted)">{patient.identification}</p>
                         </div>
-                        <Field label="Alergias"><textarea name="allergies" defaultValue={patient.allergies ?? ""} className={textareaClassName} /></Field>
-                        <Field label="Historial o servicios previos"><textarea name="previousTreatments" defaultValue={patient.previousTreatments ?? ""} className={textareaClassName} /></Field>
-                        <Field label="Notas importantes"><textarea name="importantNotes" defaultValue={patient.importantNotes ?? ""} className={textareaClassName} /></Field>
-                        <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
-                      </form>
-                      <form action={deletePatient}>
-                        <input type="hidden" name="id" value={patient.id} />
-                        <SubmitButton label="Eliminar cliente" pendingLabel="Eliminando..." variant="danger" />
-                      </form>
+                        <p className="text-sm text-(--color-ink)">{patient.phone || "-"}</p>
+                        <p className="text-sm text-(--color-ink)">{patient.revenues.length}</p>
+                        <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/pacientes/${patient.id}`}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#dbe5ff] bg-[#eef4ff] text-[#2f5be7]"
+                            aria-label={`Ver ${fullName}`}
+                          >
+                            <ViewIcon />
+                          </Link>
+                          <details className="relative">
+                            <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-[#fde7ad] bg-[#fff7df] text-[#d39a00]">
+                              <EditIcon />
+                            </summary>
+                            <div className="absolute right-0 z-10 mt-3 w-[min(92vw,38rem)] rounded-[28px] border border-(--color-line) bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.14)]">
+                              <form action={updatePatient} className="grid gap-4">
+                                <input type="hidden" name="id" value={patient.id} />
+                                <div className={formGridClassName}>
+                                  <Field label="Nombres"><input name="firstName" defaultValue={patient.firstName} className={inputClassName} required /></Field>
+                                  <Field label="Apellidos"><input name="lastName" defaultValue={patient.lastName} className={inputClassName} required /></Field>
+                                  <Field label="Identificacion"><input name="identification" defaultValue={patient.identification} className={inputClassName} required /></Field>
+                                  <Field label="Telefono"><input name="phone" defaultValue={patient.phone} className={inputClassName} required /></Field>
+                                  <Field label="Correo"><input name="email" type="email" defaultValue={patient.email ?? ""} className={inputClassName} /></Field>
+                                  <Field label="Fecha de nacimiento"><input name="birthDate" type="date" defaultValue={formatDateInput(patient.birthDate)} className={inputClassName} /></Field>
+                                  <Field label="Ultima visita"><input name="lastVisitAt" type="date" defaultValue={formatDateInput(patient.lastVisitAt)} className={inputClassName} /></Field>
+                                  <Field label="Proximo seguimiento"><input name="nextVisitAt" type="date" defaultValue={formatDateInput(patient.nextVisitAt)} className={inputClassName} /></Field>
+                                </div>
+                                <Field label="Alergias"><textarea name="allergies" defaultValue={patient.allergies ?? ""} className={textareaClassName} /></Field>
+                                <Field label="Historial o servicios previos"><textarea name="previousTreatments" defaultValue={patient.previousTreatments ?? ""} className={textareaClassName} /></Field>
+                                <Field label="Notas importantes"><textarea name="importantNotes" defaultValue={patient.importantNotes ?? ""} className={textareaClassName} /></Field>
+                                <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                              </form>
+                            </div>
+                          </details>
+                          <form action={deletePatient}>
+                            <input type="hidden" name="id" value={patient.id} />
+                            <button
+                              type="submit"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#ffd4d1] bg-[#fff0ef] text-[#ef4444]"
+                              aria-label={`Eliminar ${fullName}`}
+                            >
+                              <DeleteIcon />
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                      <div className="grid gap-2 border-t border-(--color-line) bg-[#fcfaf7] px-4 py-3 text-sm text-(--color-muted) md:hidden">
+                        <p>Telefono: {patient.phone || "-"}</p>
+                        <p>Servicios hechos: {patient.revenues.length}</p>
+                        <p>Total cobrado: {formatMoney(totalCharged)}</p>
+                        <p>Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
+                      </div>
                     </div>
-                  </details>
-                </div>
-              ))
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </FormCard>
       </div>
     </>
