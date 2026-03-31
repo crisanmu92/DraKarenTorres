@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { createPatient, deletePatient, updatePatient } from "@/app/actions";
+import { deletePatient, updatePatient } from "@/app/actions";
 import {
   EmptyState,
   Field,
@@ -125,58 +125,39 @@ export default async function PatientsPage({
 
       <div className="grid gap-4">
         <FormCard
-          eyebrow="Nuevo paciente"
-          title="Agregar paciente"
-          description="Primero registra la ficha. Los servicios realizados se agregan luego dentro de cada paciente."
-        >
-          <form action={createPatient} className="grid gap-4">
-            <input type="hidden" name="redirectTo" value="/pacientes" />
-            <div className={formGridClassName}>
-              <Field label="Nombres"><input name="firstName" className={inputClassName} required /></Field>
-              <Field label="Apellidos"><input name="lastName" className={inputClassName} required /></Field>
-              <Field label="Identificacion"><input name="identification" className={inputClassName} required /></Field>
-              <Field label="Telefono"><input name="phone" className={inputClassName} required /></Field>
-              <Field label="Correo"><input name="email" type="email" className={inputClassName} /></Field>
-              <Field label="Fecha de nacimiento"><input name="birthDate" type="date" className={inputClassName} /></Field>
-              <Field label="Ultima visita"><input name="lastVisitAt" type="date" className={inputClassName} /></Field>
-              <Field label="Proximo seguimiento"><input name="nextVisitAt" type="date" className={inputClassName} /></Field>
-            </div>
-            <Field label="Alergias"><textarea name="allergies" className={textareaClassName} /></Field>
-            <Field label="Historial o servicios previos"><textarea name="previousTreatments" className={textareaClassName} /></Field>
-            <Field label="Notas importantes"><textarea name="importantNotes" className={textareaClassName} /></Field>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-(--color-muted)">Los servicios ya no se cargan en este formulario.</p>
-              <SubmitButton label="Guardar paciente" pendingLabel="Guardando paciente..." />
-            </div>
-          </form>
-        </FormCard>
-
-        <FormCard
           eyebrow="Listado"
           title="Pacientes registrados"
           description="Usa la accion ver para abrir la ficha del paciente y agregarle los servicios realizados."
         >
-          <form method="GET" className="mb-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              placeholder="Buscar paciente..."
-              className={inputClassName}
-            />
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-full bg-[#2f5be7] px-5 py-3 text-sm font-semibold text-white"
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <form method="GET" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:flex-1">
+              <input
+                type="search"
+                name="q"
+                defaultValue={query}
+                placeholder="Buscar paciente..."
+                className={inputClassName}
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-full bg-[#2f5be7] px-5 py-3 text-sm font-semibold text-white"
+              >
+                Buscar
+              </button>
+              <a
+                href="/pacientes"
+                className="inline-flex items-center justify-center rounded-full border border-(--color-line) bg-white px-5 py-3 text-sm font-semibold text-(--color-ink)"
+              >
+                Limpiar
+              </a>
+            </form>
+            <Link
+              href="/pacientes/nuevo"
+              className="inline-flex items-center justify-center rounded-full bg-[#111827] px-5 py-3 text-sm font-semibold text-white"
             >
-              Buscar
-            </button>
-            <a
-              href="/pacientes"
-              className="inline-flex items-center justify-center rounded-full border border-(--color-line) bg-white px-5 py-3 text-sm font-semibold text-(--color-ink)"
-            >
-              Limpiar
-            </a>
-          </form>
+              Agregar paciente
+            </Link>
+          </div>
 
           {patients.length === 0 ? (
             <EmptyState>
