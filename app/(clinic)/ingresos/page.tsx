@@ -3,7 +3,7 @@ import { PaymentMethod } from "@prisma/client";
 import { createRevenue, deleteRevenue, updateRevenue } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, Notice, SectionHeading, textareaClassName } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateTimeInput, formatMoney, paymentMethodLabels, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateTimeInput, formatMoney, getNetAmount, paymentMethodLabels, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,7 @@ export default async function RevenuesPage({
     id: string;
     occurredAt: Date;
     amount: unknown;
+    discountAmount: unknown;
     paymentMethod: PaymentMethod;
     notes: string | null;
     patientId: string;
@@ -106,6 +107,9 @@ export default async function RevenuesPage({
               <Field label="Costo real">
                 <input name="costAmount" type="number" step="0.01" min="0" className={inputClassName} />
               </Field>
+              <Field label="Descuento">
+                <input name="discountAmount" type="number" step="0.01" min="0" className={inputClassName} />
+              </Field>
               <Field label="Medio de pago">
                 <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
                   {Object.values(PaymentMethod).map((method) => (
@@ -142,10 +146,13 @@ export default async function RevenuesPage({
                         {revenue.saleItem.name} · {paymentMethodLabels[revenue.paymentMethod]}
                       </p>
                       <p className="mt-1 text-sm text-(--color-muted)">
-                        Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(toNumber(revenue.amount) - toNumber(revenue.costAmount))}
+                        Cobrado: {formatMoney(revenue.amount)} · Descuento: {formatMoney(revenue.discountAmount)} · Neto: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}
+                      </p>
+                      <p className="mt-1 text-sm text-(--color-muted)">
+                        Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount))}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(revenue.amount)}</p>
+                    <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}</p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">{formatDate(revenue.occurredAt)}</p>
                   <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
@@ -178,6 +185,9 @@ export default async function RevenuesPage({
                           </Field>
                           <Field label="Costo real">
                             <input name="costAmount" type="number" step="0.01" min="0" defaultValue={revenue.costAmount == null ? "" : String(revenue.costAmount)} className={inputClassName} />
+                          </Field>
+                          <Field label="Descuento">
+                            <input name="discountAmount" type="number" step="0.01" min="0" defaultValue={revenue.discountAmount == null ? "" : String(revenue.discountAmount)} className={inputClassName} />
                           </Field>
                           <Field label="Medio de pago">
                             <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>

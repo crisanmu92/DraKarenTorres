@@ -12,7 +12,7 @@ import {
   textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateInput, formatMoney, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 function ViewIcon() {
@@ -67,7 +67,7 @@ export default async function PatientsPage({
     importantNotes: string | null;
     lastVisitAt: Date | null;
     nextVisitAt: Date | null;
-    revenues: Array<{ id: string; amount: unknown; costAmount: unknown }>;
+    revenues: Array<{ id: string; amount: unknown; discountAmount: unknown; costAmount: unknown }>;
   }> = [];
   let pageError: string | null = null;
 
@@ -102,6 +102,7 @@ export default async function PatientsPage({
           select: {
             id: true,
             amount: true,
+            discountAmount: true,
             costAmount: true,
           },
         },
@@ -176,9 +177,13 @@ export default async function PatientsPage({
               <div className="divide-y divide-(--color-line)">
                 {patients.map((patient) => {
                   const fullName = `${patient.firstName} ${patient.lastName}`;
-                  const totalCharged = patient.revenues.reduce((sum, revenue) => sum + toNumber(revenue.amount), 0);
+                  const totalCharged = patient.revenues.reduce(
+                    (sum, revenue) => sum + getNetAmount(revenue.amount, revenue.discountAmount),
+                    0,
+                  );
                   const totalProfit = patient.revenues.reduce(
-                    (sum, revenue) => sum + (toNumber(revenue.amount) - toNumber(revenue.costAmount)),
+                    (sum, revenue) =>
+                      sum + (getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount)),
                     0,
                   );
 

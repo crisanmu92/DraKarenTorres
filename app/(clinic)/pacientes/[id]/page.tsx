@@ -18,6 +18,7 @@ import {
   formatDate,
   formatDateTimeInput,
   formatMoney,
+  getNetAmount,
   paymentMethodLabels,
   toNumber,
 } from "@/lib/clinic-format";
@@ -48,6 +49,7 @@ export default async function PatientDetailPage({
       id: string;
       occurredAt: Date;
       amount: unknown;
+      discountAmount: unknown;
       costAmount: unknown;
       paymentMethod: PaymentMethod;
       notes: string | null;
@@ -97,7 +99,11 @@ export default async function PatientDetailPage({
     pageError = "No se encontro el paciente solicitado.";
   }
 
-  const totalCharged = patient?.revenues.reduce((sum, revenue) => sum + toNumber(revenue.amount), 0) ?? 0;
+  const totalCharged =
+    patient?.revenues.reduce(
+      (sum, revenue) => sum + getNetAmount(revenue.amount, revenue.discountAmount),
+      0,
+    ) ?? 0;
   const totalCost = patient?.revenues.reduce((sum, revenue) => sum + toNumber(revenue.costAmount), 0) ?? 0;
 
   return (
@@ -178,6 +184,7 @@ export default async function PatientDetailPage({
                     </select>
                   </Field>
                   <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
+                  <Field label="Descuento"><input name="discountAmount" type="number" step="0.01" min="0" className={inputClassName} /></Field>
                   <Field label="Medio de pago">
                     <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
                       {Object.values(PaymentMethod).map((method) => (
@@ -212,7 +219,10 @@ export default async function PatientDetailPage({
                           {formatDate(revenue.occurredAt)} · {paymentMethodLabels[revenue.paymentMethod]}
                         </p>
                         <p className="mt-1 text-sm text-(--color-muted)">
-                          Cobrado: {formatMoney(revenue.amount)} · Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(toNumber(revenue.amount) - toNumber(revenue.costAmount))}
+                          Cobrado: {formatMoney(revenue.amount)} · Descuento: {formatMoney(revenue.discountAmount)} · Neto: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}
+                        </p>
+                        <p className="mt-1 text-sm text-(--color-muted)">
+                          Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount))}
                         </p>
                       </div>
                     </div>
@@ -235,6 +245,16 @@ export default async function PatientDetailPage({
                               </select>
                             </Field>
                             <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(revenue.amount)} className={inputClassName} required /></Field>
+                            <Field label="Descuento">
+                              <input
+                                name="discountAmount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                defaultValue={revenue.discountAmount == null ? "" : String(revenue.discountAmount)}
+                                className={inputClassName}
+                              />
+                            </Field>
                             <Field label="Medio de pago">
                               <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
                                 {Object.values(PaymentMethod).map((method) => (

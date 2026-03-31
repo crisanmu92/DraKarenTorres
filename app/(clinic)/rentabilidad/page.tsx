@@ -1,6 +1,6 @@
 import { EmptyState, SectionHeading, sectionCardClassName } from "@/components/clinic/ui";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { formatDate, formatMoney, monthFormatter, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatMoney, getNetAmount, monthFormatter, toNumber } from "@/lib/clinic-format";
 import { getMonthRange } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
 
@@ -20,6 +20,7 @@ export default async function ProfitabilityPage({
     id: string;
     occurredAt: Date;
     amount: unknown;
+    discountAmount: unknown;
     costAmount: unknown;
     patient: { firstName: string; lastName: string };
     saleItem: { name: string };
@@ -40,7 +41,10 @@ export default async function ProfitabilityPage({
     pageError = "No se pudo cargar la rentabilidad en este momento.";
   }
 
-  const incomeTotal = revenues.reduce((sum, revenue) => sum + toNumber(revenue.amount), 0);
+  const incomeTotal = revenues.reduce(
+    (sum, revenue) => sum + getNetAmount(revenue.amount, revenue.discountAmount),
+    0,
+  );
   const costTotal = revenues.reduce((sum, revenue) => sum + toNumber(revenue.costAmount), 0);
   const profitTotal = incomeTotal - costTotal;
   const margin = incomeTotal > 0 ? (profitTotal / incomeTotal) * 100 : 0;
@@ -108,7 +112,7 @@ export default async function ProfitabilityPage({
             <EmptyState>No hay ingresos en este periodo para calcular rentabilidad.</EmptyState>
           ) : (
             revenues.map((revenue) => {
-              const amount = toNumber(revenue.amount);
+              const amount = getNetAmount(revenue.amount, revenue.discountAmount);
               const cost = toNumber(revenue.costAmount);
               const profit = amount - cost;
 

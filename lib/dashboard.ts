@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getNetAmount } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export function parseMonthValue(month?: string | null) {
@@ -68,15 +69,15 @@ export async function getDashboardSummary(selectedMonth?: string | null): Promis
 
   try {
     const [
-      incomeAggregate,
+      incomeRows,
       expenseAggregate,
       revenueCount,
       expenseCount,
       lowStockProductsCount,
       nearExpiryProductsCount,
     ] = await Promise.all([
-      prisma.revenue.aggregate({
-        _sum: { amount: true },
+      prisma.revenue.findMany({
+        select: { amount: true, discountAmount: true },
         where: {
           occurredAt: {
             gte: monthStart,
@@ -128,7 +129,10 @@ export async function getDashboardSummary(selectedMonth?: string | null): Promis
       }),
     ]);
 
-    const incomeMonthTotal = toNumber(incomeAggregate._sum.amount);
+    const incomeMonthTotal = incomeRows.reduce(
+      (sum, revenue) => sum + getNetAmount(revenue.amount, revenue.discountAmount),
+      0,
+    );
     const expenseMonthTotal = toNumber(expenseAggregate._sum.amount);
 
     return {

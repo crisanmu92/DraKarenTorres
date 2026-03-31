@@ -385,6 +385,7 @@ export async function createPatient(formData: FormData) {
           data: {
             occurredAt: revenueOccurredAt ?? new Date(),
             amount: getRequiredDecimal(formData, "amount"),
+            discountAmount: getOptionalDecimal(formData, "discountAmount"),
             costAmount: getOptionalDecimal(formData, "costAmount") ?? saleItem?.baseCost ?? undefined,
             paymentMethod: getEnumValue(
               getRequiredString(formData, "paymentMethod"),
@@ -537,6 +538,7 @@ export async function createRevenue(formData: FormData) {
   try {
     const saleItemId = getRequiredString(formData, "saleItemId");
     const manualCost = getOptionalDecimal(formData, "costAmount");
+    const discountAmount = getOptionalDecimal(formData, "discountAmount");
     await prisma.$transaction(async (tx) => {
       const saleItem = await tx.saleItem.findUnique({
         where: { id: saleItemId },
@@ -547,6 +549,7 @@ export async function createRevenue(formData: FormData) {
         data: {
           occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
           amount: getRequiredDecimal(formData, "amount"),
+          discountAmount,
           costAmount: undefined,
           paymentMethod: getEnumValue(
             getRequiredString(formData, "paymentMethod"),
@@ -848,6 +851,7 @@ export async function deleteSaleItem(formData: FormData) {
 export async function updateRevenue(formData: FormData) {
   const saleItemId = getRequiredString(formData, "saleItemId");
   const manualCost = getOptionalDecimal(formData, "costAmount");
+  const discountAmount = getOptionalDecimal(formData, "discountAmount");
   const revenueId = getId(formData);
 
   await prisma.$transaction(async (tx) => {
@@ -866,6 +870,7 @@ export async function updateRevenue(formData: FormData) {
       data: {
         occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
         amount: getRequiredDecimal(formData, "amount"),
+        discountAmount,
         costAmount: resolvedCost,
         paymentMethod: getEnumValue(
           getRequiredString(formData, "paymentMethod"),

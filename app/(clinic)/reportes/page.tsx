@@ -5,6 +5,7 @@ import {
   formatDate,
   formatMoney,
   formatPercent,
+  getNetAmount,
   monthFormatter,
   paymentMethodLabels,
   toNumber,
@@ -61,6 +62,7 @@ export default async function ReportsPage({
     id: string;
     occurredAt: Date;
     amount: unknown;
+    discountAmount: unknown;
     paymentMethod: "CASH" | "TRANSFER" | "CARD";
     patient: { firstName: string; lastName: string };
     saleItem: { name: string };
@@ -86,11 +88,11 @@ export default async function ReportsPage({
       recentExpenses,
     ] = await Promise.all([
       prisma.revenue
-        .aggregate({
-          _sum: { amount: true },
+        .findMany({
+          select: { amount: true, discountAmount: true },
           where: { occurredAt: { gte: monthStart, lt: nextMonthStart } },
         })
-        .then((result) => toNumber(result._sum.amount)),
+        .then((rows) => rows.reduce((sum, row) => sum + getNetAmount(row.amount, row.discountAmount), 0)),
       prisma.expense
         .aggregate({
           _sum: { amount: true },
@@ -104,11 +106,18 @@ export default async function ReportsPage({
         where: { occurredAt: { gte: monthStart, lt: nextMonthStart } },
       }),
       prisma.revenue
-        .aggregate({
-          _avg: { amount: true },
+        .findMany({
+          select: { amount: true, discountAmount: true },
           where: { occurredAt: { gte: monthStart, lt: nextMonthStart } },
         })
-        .then((result) => toNumber(result._avg.amount)),
+        .then((rows) => {
+          if (rows.length === 0) {
+            return 0;
+          }
+
+          const total = rows.reduce((sum, row) => sum + getNetAmount(row.amount, row.discountAmount), 0);
+          return total / rows.length;
+        }),
       prisma.expense
         .groupBy({
           by: ["category"],
@@ -315,7 +324,7 @@ export default async function ReportsPage({
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-(--color-ink)">
-                      {formatMoney(revenue.amount)}
+                      {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}
                     </p>
                   </div>
                   <p className="mt-2 text-sm text-(--color-muted)">

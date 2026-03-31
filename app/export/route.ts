@@ -1,6 +1,6 @@
 import { ExpenseCategory, InventoryMovementType, InventoryUnit, PaymentMethod, SaleItemType } from "@prisma/client";
 
-import { expenseCategoryLabels, paymentMethodLabels, toNumber } from "@/lib/clinic-format";
+import { expenseCategoryLabels, getNetAmount, paymentMethodLabels, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -166,14 +166,16 @@ export async function GET() {
     ),
     buildTable(
       "Ingresos",
-      ["Fecha", "Cliente", "Servicio", "Monto", "Costo", "Ganancia", "Medio de pago", "Notas"],
+      ["Fecha", "Cliente", "Servicio", "Cobrado", "Descuento", "Neto", "Costo", "Ganancia", "Medio de pago", "Notas"],
       revenues.map((revenue) => [
         formatDateCell(revenue.occurredAt),
         `${revenue.patient.firstName} ${revenue.patient.lastName}`,
         revenue.saleItem.name,
         toNumber(revenue.amount),
+        toNumber(revenue.discountAmount),
+        getNetAmount(revenue.amount, revenue.discountAmount),
         toNumber(revenue.costAmount),
-        toNumber(revenue.amount) - toNumber(revenue.costAmount),
+        getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount),
         paymentMethodLabels[revenue.paymentMethod as PaymentMethod],
         revenue.notes ?? "",
       ]),

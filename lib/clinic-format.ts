@@ -35,6 +35,10 @@ export function formatMoney(value: unknown) {
   return currencyFormatter.format(toNumber(value));
 }
 
+export function getNetAmount(amount: unknown, discountAmount?: unknown) {
+  return toNumber(amount) - toNumber(discountAmount);
+}
+
 export function formatDate(value: Date | null | undefined) {
   if (!value) {
     return "Sin fecha";
