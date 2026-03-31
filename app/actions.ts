@@ -19,6 +19,7 @@ const inventoryMovementTypes = Object.values(InventoryMovementType);
 const inventoryUnits = Object.values(InventoryUnit);
 const paymentMethods = Object.values(PaymentMethod);
 const saleItemTypes = Object.values(SaleItemType);
+const serviceComponentSlots = 5;
 
 function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -82,6 +83,187 @@ function getOptionalDate(formData: FormData, key: string) {
   }
 
   return date;
+}
+
+function aggregateQuantitiesByProduct<T extends { productId: string; quantity: Prisma.Decimal }>(items: T[]) {
+  const totals = new Map<string, Prisma.Decimal>();
+
+  for (const item of items) {
+    const current = totals.get(item.productId) ?? new Prisma.Decimal(0);
+    totals.set(item.productId, current.add(item.quantity));
+  }
+
+  return totals;
+}
+
+function parseSaleItemComponents(formData: FormData) {
+  const components: Array<{ productId: string; quantity: Prisma.Decimal }> = [];
+
+  for (let index = 0; index < serviceComponentSlots; index += 1) {
+    const productId = getOptionalString(formData, `componentProductId_${index}`);
+    const quantityRaw = getOptionalString(formData, `componentQuantity_${index}`);
+
+    if (!productId && !quantityRaw) {
+      continue;
+    }
+
+    if (!productId || !quantityRaw) {
+      throw new Error("Completa producto y cantidad en cada insumo del servicio.");
+    }
+
+    const quantity = new Prisma.Decimal(Number(quantityRaw.replace(",", ".")));
+
+    if (quantity.lte(0)) {
+      throw new Error("La cantidad de cada insumo debe ser mayor a cero.");
+    }
+
+    components.push({ productId, quantity });
+  }
+
+  const duplicates = new Set<string>();
+  const seen = new Set<string>();
+
+  for (const component of components) {
+    if (seen.has(component.productId)) {
+      duplicates.add(component.productId);
+    }
+    seen.add(component.productId);
+  }
+
+  if (duplicates.size > 0) {
+    throw new Error("No repitas el mismo producto dentro de un servicio.");
+  }
+
+  return components;
+}
+
+async function syncSaleItemComponents(
+  tx: Prisma.TransactionClient,
+  saleItemId: string,
+  components: Array<{ productId: string; quantity: Prisma.Decimal }>,
+) {
+  await tx.saleItemComponent.deleteMany({ where: { saleItemId } });
+
+  if (components.length === 0) {
+    return;
+  }
+
+  await tx.saleItemComponent.createMany({
+    data: components.map((component) => ({
+      saleItemId,
+      productId: component.productId,
+      quantity: component.quantity,
+    })),
+  });
+}
+
+async function getSaleItemInventoryCost(
+  tx: Prisma.TransactionClient,
+  saleItemId: string,
+) {
+  const components = await tx.saleItemComponent.findMany({
+    where: { saleItemId },
+    select: {
+      productId: true,
+      quantity: true,
+      product: {
+        select: {
+          name: true,
+          stockQuantity: true,
+          costPrice: true,
+        },
+      },
+    },
+  });
+
+  if (components.length === 0) {
+    return { components: [], totalCost: undefined as Prisma.Decimal | undefined };
+  }
+
+  let totalCost = new Prisma.Decimal(0);
+
+  for (const component of components) {
+    if (component.product.stockQuantity.lt(component.quantity)) {
+      throw new Error(`No hay inventario suficiente para ${component.product.name}.`);
+    }
+
+    const unitCost = component.product.costPrice ?? new Prisma.Decimal(0);
+    totalCost = totalCost.add(unitCost.mul(component.quantity));
+  }
+
+  return { components, totalCost };
+}
+
+async function applyRevenueInventoryUsage(
+  tx: Prisma.TransactionClient,
+  revenueId: string,
+  saleItemId: string,
+) {
+  const { components, totalCost } = await getSaleItemInventoryCost(tx, saleItemId);
+
+  if (components.length === 0) {
+    return undefined;
+  }
+
+  for (const component of components) {
+    const unitCost = component.product.costPrice ?? new Prisma.Decimal(0);
+    const totalComponentCost = unitCost.mul(component.quantity);
+
+    await tx.product.update({
+      where: { id: component.productId },
+      data: {
+        stockQuantity: {
+          decrement: component.quantity,
+        },
+      },
+    });
+
+    await tx.revenueInventoryUsage.create({
+      data: {
+        revenueId,
+        productId: component.productId,
+        quantity: component.quantity,
+        unitCost,
+        totalCost: totalComponentCost,
+      },
+    });
+  }
+
+  return totalCost;
+}
+
+async function restoreRevenueInventoryUsage(
+  tx: Prisma.TransactionClient,
+  revenueIds: string[],
+) {
+  if (revenueIds.length === 0) {
+    return;
+  }
+
+  const usages = await tx.revenueInventoryUsage.findMany({
+    where: { revenueId: { in: revenueIds } },
+    select: {
+      productId: true,
+      quantity: true,
+    },
+  });
+
+  const aggregated = aggregateQuantitiesByProduct(usages);
+
+  for (const [productId, quantity] of aggregated.entries()) {
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        stockQuantity: {
+          increment: quantity,
+        },
+      },
+    });
+  }
+
+  await tx.revenueInventoryUsage.deleteMany({
+    where: { revenueId: { in: revenueIds } },
+  });
 }
 
 function getAutoLotNumber() {
@@ -311,29 +493,46 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function createSaleItem(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/servicios");
   const type = getEnumValue(
     getRequiredString(formData, "type"),
     saleItemTypes,
     "type",
   );
   const productId = getOptionalString(formData, "productId");
+  const components = parseSaleItemComponents(formData);
 
   if (type === SaleItemType.PRODUCT && !productId) {
     throw new Error("Los items de tipo producto deben enlazarse a un producto.");
   }
 
-  await prisma.saleItem.create({
-    data: {
-      name: getRequiredString(formData, "name"),
-      type,
-      description: getOptionalString(formData, "description"),
-      unitPrice: getRequiredDecimal(formData, "unitPrice"),
-      baseCost: getOptionalDecimal(formData, "baseCost"),
-      productId,
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const saleItem = await tx.saleItem.create({
+        data: {
+          name: getRequiredString(formData, "name"),
+          type,
+          description: getOptionalString(formData, "description"),
+          unitPrice: getRequiredDecimal(formData, "unitPrice"),
+          baseCost: getOptionalDecimal(formData, "baseCost"),
+          productId,
+        },
+      });
 
-  finishMutation();
+      await syncSaleItemComponents(tx, saleItem.id, components);
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Servicio guardado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar el servicio."),
+    });
+  }
 }
 
 export async function createRevenue(formData: FormData) {
@@ -342,25 +541,37 @@ export async function createRevenue(formData: FormData) {
   try {
     const saleItemId = getRequiredString(formData, "saleItemId");
     const manualCost = getOptionalDecimal(formData, "costAmount");
-    const saleItem = await prisma.saleItem.findUnique({
-      where: { id: saleItemId },
-      select: { baseCost: true },
-    });
+    await prisma.$transaction(async (tx) => {
+      const saleItem = await tx.saleItem.findUnique({
+        where: { id: saleItemId },
+        select: { baseCost: true },
+      });
 
-    await prisma.revenue.create({
-      data: {
-        occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
-        amount: getRequiredDecimal(formData, "amount"),
-        costAmount: manualCost ?? saleItem?.baseCost ?? undefined,
-        paymentMethod: getEnumValue(
-          getRequiredString(formData, "paymentMethod"),
-          paymentMethods,
-          "paymentMethod",
-        ),
-        notes: getOptionalString(formData, "notes"),
-        patientId: getRequiredString(formData, "patientId"),
-        saleItemId,
-      },
+      const revenue = await tx.revenue.create({
+        data: {
+          occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
+          amount: getRequiredDecimal(formData, "amount"),
+          costAmount: undefined,
+          paymentMethod: getEnumValue(
+            getRequiredString(formData, "paymentMethod"),
+            paymentMethods,
+            "paymentMethod",
+          ),
+          notes: getOptionalString(formData, "notes"),
+          patientId: getRequiredString(formData, "patientId"),
+          saleItemId,
+        },
+      });
+
+      const inventoryCost = await applyRevenueInventoryUsage(tx, revenue.id, saleItemId);
+      const resolvedCost = inventoryCost ?? manualCost ?? saleItem?.baseCost ?? undefined;
+
+      await tx.revenue.update({
+        where: { id: revenue.id },
+        data: {
+          costAmount: resolvedCost,
+        },
+      });
     });
 
     finishMutation();
@@ -448,11 +659,19 @@ export async function updatePatient(formData: FormData) {
 
 export async function deletePatient(formData: FormData) {
   const id = getId(formData);
+  await prisma.$transaction(async (tx) => {
+    const revenues = await tx.revenue.findMany({
+      where: { patientId: id },
+      select: { id: true },
+    });
 
-  await prisma.$transaction([
-    prisma.revenue.deleteMany({ where: { patientId: id } }),
-    prisma.patient.delete({ where: { id } }),
-  ]);
+    await restoreRevenueInventoryUsage(
+      tx,
+      revenues.map((revenue) => revenue.id),
+    );
+    await tx.revenue.deleteMany({ where: { patientId: id } });
+    await tx.patient.delete({ where: { id } });
+  });
 
   finishMutation();
 }
@@ -483,6 +702,8 @@ export async function deleteSupplier(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     if (productIds.length > 0) {
       await tx.inventoryMovement.deleteMany({ where: { productId: { in: productIds } } });
+      await tx.revenueInventoryUsage.deleteMany({ where: { productId: { in: productIds } } });
+      await tx.saleItemComponent.deleteMany({ where: { productId: { in: productIds } } });
       await tx.saleItem.updateMany({
         where: { productId: { in: productIds } },
         data: { productId: null },
@@ -562,6 +783,8 @@ export async function deleteProduct(formData: FormData) {
   try {
     await prisma.$transaction([
       prisma.inventoryMovement.deleteMany({ where: { productId: id } }),
+      prisma.revenueInventoryUsage.deleteMany({ where: { productId: id } }),
+      prisma.saleItemComponent.deleteMany({ where: { productId: id } }),
       prisma.saleItem.updateMany({
         where: { productId: id },
         data: { productId: null },
@@ -586,21 +809,26 @@ export async function updateSaleItem(formData: FormData) {
   const id = getId(formData);
   const type = getEnumValue(getRequiredString(formData, "type"), saleItemTypes, "type");
   const productId = getOptionalString(formData, "productId");
+  const components = parseSaleItemComponents(formData);
 
   if (type === SaleItemType.PRODUCT && !productId) {
     throw new Error("Los items de tipo producto deben enlazarse a un producto.");
   }
 
-  await prisma.saleItem.update({
-    where: { id },
-    data: {
-      name: getRequiredString(formData, "name"),
-      type,
-      description: getOptionalString(formData, "description"),
-      unitPrice: getRequiredDecimal(formData, "unitPrice"),
-      baseCost: getOptionalDecimal(formData, "baseCost"),
-      productId,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.saleItem.update({
+      where: { id },
+      data: {
+        name: getRequiredString(formData, "name"),
+        type,
+        description: getOptionalString(formData, "description"),
+        unitPrice: getRequiredDecimal(formData, "unitPrice"),
+        baseCost: getOptionalDecimal(formData, "baseCost"),
+        productId,
+      },
+    });
+
+    await syncSaleItemComponents(tx, id, components);
   });
 
   finishMutation();
@@ -608,11 +836,19 @@ export async function updateSaleItem(formData: FormData) {
 
 export async function deleteSaleItem(formData: FormData) {
   const id = getId(formData);
+  await prisma.$transaction(async (tx) => {
+    const revenues = await tx.revenue.findMany({
+      where: { saleItemId: id },
+      select: { id: true },
+    });
 
-  await prisma.$transaction([
-    prisma.revenue.deleteMany({ where: { saleItemId: id } }),
-    prisma.saleItem.delete({ where: { id } }),
-  ]);
+    await restoreRevenueInventoryUsage(
+      tx,
+      revenues.map((revenue) => revenue.id),
+    );
+    await tx.revenue.deleteMany({ where: { saleItemId: id } });
+    await tx.saleItem.delete({ where: { id } });
+  });
 
   finishMutation();
 }
@@ -620,33 +856,48 @@ export async function deleteSaleItem(formData: FormData) {
 export async function updateRevenue(formData: FormData) {
   const saleItemId = getRequiredString(formData, "saleItemId");
   const manualCost = getOptionalDecimal(formData, "costAmount");
-  const saleItem = await prisma.saleItem.findUnique({
-    where: { id: saleItemId },
-    select: { baseCost: true },
-  });
+  const revenueId = getId(formData);
 
-  await prisma.revenue.update({
-    where: { id: getId(formData) },
-    data: {
-      occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
-      amount: getRequiredDecimal(formData, "amount"),
-      costAmount: manualCost ?? saleItem?.baseCost ?? undefined,
-      paymentMethod: getEnumValue(
-        getRequiredString(formData, "paymentMethod"),
-        paymentMethods,
-        "paymentMethod",
-      ),
-      notes: getOptionalString(formData, "notes"),
-      patientId: getRequiredString(formData, "patientId"),
-      saleItemId,
-    },
+  await prisma.$transaction(async (tx) => {
+    const saleItem = await tx.saleItem.findUnique({
+      where: { id: saleItemId },
+      select: { baseCost: true },
+    });
+
+    await restoreRevenueInventoryUsage(tx, [revenueId]);
+
+    const inventoryCost = await applyRevenueInventoryUsage(tx, revenueId, saleItemId);
+    const resolvedCost = inventoryCost ?? manualCost ?? saleItem?.baseCost ?? undefined;
+
+    await tx.revenue.update({
+      where: { id: revenueId },
+      data: {
+        occurredAt: getOptionalDate(formData, "occurredAt") ?? new Date(),
+        amount: getRequiredDecimal(formData, "amount"),
+        costAmount: resolvedCost,
+        paymentMethod: getEnumValue(
+          getRequiredString(formData, "paymentMethod"),
+          paymentMethods,
+          "paymentMethod",
+        ),
+        notes: getOptionalString(formData, "notes"),
+        patientId: getRequiredString(formData, "patientId"),
+        saleItemId,
+      },
+    });
   });
 
   finishMutation();
 }
 
 export async function deleteRevenue(formData: FormData) {
-  await prisma.revenue.delete({ where: { id: getId(formData) } });
+  const id = getId(formData);
+
+  await prisma.$transaction(async (tx) => {
+    await restoreRevenueInventoryUsage(tx, [id]);
+    await tx.revenue.delete({ where: { id } });
+  });
+
   finishMutation();
 }
 

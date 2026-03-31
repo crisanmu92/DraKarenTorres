@@ -1,24 +1,27 @@
+import Link from "next/link";
 import { SaleItemType } from "@prisma/client";
 
-import { createSaleItem, deleteSaleItem, updateSaleItem } from "@/app/actions";
+import { deleteSaleItem, updateSaleItem } from "@/app/actions";
 import {
   EmptyState,
   Field,
   FormCard,
-  formGridClassName,
-  inputClassName,
   Notice,
   SectionHeading,
+  formGridClassName,
+  inputClassName,
   textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatMoney } from "@/lib/clinic-format";
+import { formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 const saleItemTypeLabels: Record<SaleItemType, string> = {
   TREATMENT: "Tratamiento",
   PRODUCT: "Producto",
 };
+
+const componentSlots = [0, 1, 2, 3, 4];
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,7 @@ export default async function ServicesPage({
   let products: Array<{
     id: string;
     name: string;
+    unit: string;
   }> = [];
   let saleItems: Array<{
     id: string;
@@ -40,6 +44,12 @@ export default async function ServicesPage({
     unitPrice: unknown;
     baseCost: unknown;
     product: { id: string; name: string } | null;
+    components: Array<{
+      id: string;
+      productId: string;
+      quantity: unknown;
+      product: { name: string; unit: string; costPrice: unknown };
+    }>;
   }> = [];
   let pageError: string | null = null;
 
@@ -47,12 +57,26 @@ export default async function ServicesPage({
     [products, saleItems] = await Promise.all([
       prisma.product.findMany({
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, unit: true },
       }),
       prisma.saleItem.findMany({
-        include: { product: true },
+        include: {
+          product: true,
+          components: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  unit: true,
+                  costPrice: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
         orderBy: [{ createdAt: "desc" }],
-        take: 12,
+        take: 24,
       }),
     ]);
   } catch {
@@ -63,71 +87,70 @@ export default async function ServicesPage({
     <>
       <SectionHeading
         eyebrow="Servicios"
-        title="Registro de servicios"
-        description="Aqui configuras tratamientos, servicios y productos que luego generan ingresos."
+        title="Lista de servicios"
+        description="Aqui ves los servicios configurados, su precio sugerido, el costo calculado con inventario y la utilidad estimada."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
       {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <FormCard
-          eyebrow="Nuevo servicio"
-          title="Agregar servicio"
-          description="Crea el concepto que vas a cobrar y su precio."
-        >
-          <form action={createSaleItem} className="grid gap-4">
-            <input type="hidden" name="redirectTo" value="/servicios" />
-            <div className={formGridClassName}>
-              <Field label="Nombre"><input name="name" className={inputClassName} required /></Field>
-              <Field label="Tipo">
-                <select name="type" className={inputClassName} defaultValue="TREATMENT" required>
-                  {Object.values(SaleItemType).map((type) => (
-                    <option key={type} value={type}>{saleItemTypeLabels[type]}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Precio">
-                <input name="unitPrice" type="number" step="0.01" min="0" className={inputClassName} required />
-              </Field>
-              <Field label="Costo base">
-                <input name="baseCost" type="number" step="0.01" min="0" className={inputClassName} />
-              </Field>
-              <Field label="Producto relacionado">
-                <select name="productId" className={inputClassName} defaultValue="">
-                  <option value="">Sin producto relacionado</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>{product.name}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            <Field label="Descripcion"><textarea name="description" className={textareaClassName} /></Field>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-(--color-muted)">Cada servicio queda disponible al registrar ingresos.</p>
-              <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
-            </div>
-          </form>
-        </FormCard>
+      <FormCard
+        eyebrow="Catalogo"
+        title="Servicios registrados"
+        description="Crea nuevos servicios desde el boton y define que productos del inventario usa cada uno para calcular costos y utilidad."
+      >
+        <div className="mb-5 flex justify-end">
+          <Link
+            href="/servicios/nuevo"
+            className="inline-flex items-center justify-center rounded-full bg-[#111827] px-5 py-3 text-sm font-semibold text-white"
+          >
+            Agregar servicio
+          </Link>
+        </div>
 
-        <FormCard
-          eyebrow="Listado"
-          title="Servicios recientes"
-          description="Ultimos servicios o productos configurados para cobro."
-        >
-          <div className="grid gap-3">
-            {saleItems.length === 0 ? (
-              <EmptyState>Aun no hay servicios registrados.</EmptyState>
-            ) : (
-              saleItems.map((item) => (
+        <div className="grid gap-3">
+          {saleItems.length === 0 ? (
+            <EmptyState>Aun no hay servicios registrados.</EmptyState>
+          ) : (
+            saleItems.map((item) => {
+              const inventoryCost = item.components.reduce(
+                (sum, component) => sum + (toNumber(component.quantity) * toNumber(component.product.costPrice)),
+                0,
+              );
+              const displayedCost = item.components.length > 0 ? inventoryCost : toNumber(item.baseCost);
+              const estimatedProfit = toNumber(item.unitPrice) - displayedCost;
+
+              return (
                 <div key={item.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="font-semibold text-(--color-ink)">{item.name}</p>
-                  <p className="mt-1 text-sm text-(--color-muted)">
-                    {saleItemTypeLabels[item.type]} · {formatMoney(item.unitPrice)}
-                    {` · costo base ${formatMoney(item.baseCost)}`}
-                    {item.product ? ` · ${item.product.name}` : ""}
-                  </p>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="font-semibold text-(--color-ink)">{item.name}</p>
+                      <p className="mt-1 text-sm text-(--color-muted)">
+                        {saleItemTypeLabels[item.type]} · cobro sugerido {formatMoney(item.unitPrice)}
+                        {` · costo ${formatMoney(displayedCost)}`}
+                        {` · utilidad ${formatMoney(estimatedProfit)}`}
+                      </p>
+                      {item.product ? (
+                        <p className="mt-1 text-sm text-(--color-muted)">Producto relacionado: {item.product.name}</p>
+                      ) : null}
+                      {item.components.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.components.map((component) => (
+                            <span
+                              key={component.id}
+                              className="rounded-full border border-(--color-line) bg-[#fcfaf7] px-3 py-1 text-xs font-semibold text-(--color-muted)"
+                            >
+                              {component.product.name} · {toNumber(component.quantity)} {component.product.unit.toLowerCase()}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-(--color-muted)">Sin productos del inventario asociados.</p>
+                      )}
+                    </div>
+                  </div>
+
                   <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
                     <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
                       Editar o eliminar
@@ -144,10 +167,10 @@ export default async function ServicesPage({
                               ))}
                             </select>
                           </Field>
-                          <Field label="Precio">
+                          <Field label="Cuanto cobras por este servicio">
                             <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={String(item.unitPrice)} className={inputClassName} required />
                           </Field>
-                          <Field label="Costo base">
+                          <Field label="Costo base alterno">
                             <input name="baseCost" type="number" step="0.01" min="0" defaultValue={item.baseCost == null ? "" : String(item.baseCost)} className={inputClassName} />
                           </Field>
                           <Field label="Producto relacionado">
@@ -160,6 +183,38 @@ export default async function ServicesPage({
                           </Field>
                         </div>
                         <Field label="Descripcion"><textarea name="description" defaultValue={item.description ?? ""} className={textareaClassName} /></Field>
+                        <div className="grid gap-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Productos usados del inventario</p>
+                          {componentSlots.map((slot) => {
+                            const component = item.components[slot];
+
+                            return (
+                              <div key={slot} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                                <select
+                                  name={`componentProductId_${slot}`}
+                                  defaultValue={component?.productId ?? ""}
+                                  className={inputClassName}
+                                >
+                                  <option value="">Sin producto</option>
+                                  {products.map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                      {product.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  name={`componentQuantity_${slot}`}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  defaultValue={component ? String(component.quantity) : ""}
+                                  placeholder="Cantidad"
+                                  className={inputClassName}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
                         <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
                       </form>
                       <form action={deleteSaleItem}>
@@ -169,11 +224,11 @@ export default async function ServicesPage({
                     </div>
                   </details>
                 </div>
-              ))
-            )}
-          </div>
-        </FormCard>
-      </div>
+              );
+            })
+          )}
+        </div>
+      </FormCard>
     </>
   );
 }

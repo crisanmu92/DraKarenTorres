@@ -114,7 +114,7 @@ export default async function PatientDetailPage({
       <SectionHeading
         eyebrow="Paciente"
         title={patient ? `${patient.firstName} ${patient.lastName}` : "Ficha del paciente"}
-        description="Aqui registras los servicios realizados, lo que cobraste y los costos asociados a cada atencion."
+        description="Aqui registras los servicios realizados. El sistema calcula costos y utilidad con base en los productos del inventario usados por cada servicio."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
@@ -160,7 +160,7 @@ export default async function PatientDetailPage({
             <FormCard
               eyebrow="Nuevo servicio"
               title="Agregar servicio realizado"
-              description="Cada servicio queda guardado como movimiento del paciente con monto cobrado, costo y ganancia."
+              description="Cada servicio queda guardado con el monto cobrado y el sistema calcula costo y ganancia automaticamente."
             >
               <form action={createRevenue} className="grid gap-4">
                 <input type="hidden" name="patientId" value={patient.id} />
@@ -178,7 +178,6 @@ export default async function PatientDetailPage({
                     </select>
                   </Field>
                   <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-                  <Field label="Cuantos fueron los costos"><input name="costAmount" type="number" step="0.01" min="0" className={inputClassName} /></Field>
                   <Field label="Medio de pago">
                     <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
                       {Object.values(PaymentMethod).map((method) => (
@@ -236,7 +235,6 @@ export default async function PatientDetailPage({
                               </select>
                             </Field>
                             <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(revenue.amount)} className={inputClassName} required /></Field>
-                            <Field label="Cuantos fueron los costos"><input name="costAmount" type="number" step="0.01" min="0" defaultValue={revenue.costAmount == null ? "" : String(revenue.costAmount)} className={inputClassName} /></Field>
                             <Field label="Medio de pago">
                               <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
                                 {Object.values(PaymentMethod).map((method) => (
