@@ -183,22 +183,27 @@ export default async function PatientsPage({
               {query ? "No se encontraron pacientes con esa busqueda." : "Aun no hay pacientes registrados."}
             </EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-[28px] border border-(--color-line)">
-              <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.8fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_180px] md:gap-4">
+          <div className="overflow-hidden rounded-[28px] border border-(--color-line)">
+              <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.3fr)_minmax(140px,0.8fr)_minmax(150px,0.75fr)_minmax(170px,0.85fr)_minmax(170px,0.95fr)_180px] md:gap-4">
                 <p>Nombre</p>
                 <p>Telefono</p>
                 <p>Servicios hechos</p>
                 <p>Total cobrado</p>
+                <p>Ganancia acumulada</p>
                 <p>Acciones</p>
               </div>
               <div className="divide-y divide-(--color-line)">
                 {patients.map((patient) => {
                   const fullName = `${patient.firstName} ${patient.lastName}`;
                   const totalCharged = patient.revenues.reduce((sum, revenue) => sum + toNumber(revenue.amount), 0);
+                  const totalProfit = patient.revenues.reduce(
+                    (sum, revenue) => sum + (toNumber(revenue.amount) - toNumber(revenue.costAmount)),
+                    0,
+                  );
 
                   return (
                     <div key={patient.id} className="bg-white">
-                      <div className="grid gap-3 px-4 py-5 md:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.8fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_180px] md:items-center md:gap-4">
+                      <div className="grid gap-3 px-4 py-5 md:grid-cols-[minmax(220px,1.3fr)_minmax(140px,0.8fr)_minmax(150px,0.75fr)_minmax(170px,0.85fr)_minmax(170px,0.95fr)_180px] md:items-center md:gap-4">
                         <div>
                           <p className="font-semibold text-(--color-ink)">{fullName}</p>
                           <p className="mt-1 text-sm text-(--color-muted)">{patient.identification}</p>
@@ -206,6 +211,7 @@ export default async function PatientsPage({
                         <p className="text-sm text-(--color-ink)">{patient.phone || "-"}</p>
                         <p className="text-sm text-(--color-ink)">{patient.revenues.length}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
+                        <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalProfit)}</p>
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/pacientes/${patient.id}`}
@@ -254,6 +260,7 @@ export default async function PatientsPage({
                         <p>Telefono: {patient.phone || "-"}</p>
                         <p>Servicios hechos: {patient.revenues.length}</p>
                         <p>Total cobrado: {formatMoney(totalCharged)}</p>
+                        <p>Ganancia acumulada: {formatMoney(totalProfit)}</p>
                         <p>Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
                       </div>
                     </div>
