@@ -22,6 +22,8 @@ const saleItemTypeLabels: Record<SaleItemType, string> = {
 
 export const dynamic = "force-dynamic";
 
+const componentSlots = 5;
+
 export default async function ServicesPage({
   searchParams,
 }: {
@@ -33,20 +35,49 @@ export default async function ServicesPage({
     name: string;
     type: SaleItemType;
     unitPrice: unknown;
+    components: Array<{
+      productId: string;
+      quantity: unknown;
+    }>;
+  }> = [];
+  let products: Array<{
+    id: string;
+    name: string;
+    unit: string;
+    costPrice: unknown;
   }> = [];
   let pageError: string | null = null;
 
   try {
-    saleItems = await prisma.saleItem.findMany({
-      orderBy: [{ createdAt: "desc" }],
-      take: 40,
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        unitPrice: true,
-      },
-    });
+    [saleItems, products] = await Promise.all([
+      prisma.saleItem.findMany({
+        orderBy: [{ createdAt: "desc" }],
+        take: 40,
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          unitPrice: true,
+          components: {
+            select: {
+              productId: true,
+              quantity: true,
+            },
+            orderBy: [{ createdAt: "asc" }],
+          },
+        },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: [{ name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          costPrice: true,
+        },
+      }),
+    ]);
   } catch {
     pageError = "No se pudo cargar la informacion de servicios.";
   }
@@ -114,6 +145,49 @@ export default async function ServicesPage({
                               <Field label="Precio">
                                 <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={String(item.unitPrice)} className={inputClassName} required />
                               </Field>
+                            </div>
+                            <div className="grid gap-4 rounded-[28px] border border-(--color-line) bg-[#fcfaf7] p-4">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted)">Suministros del inventario</p>
+                                <p className="mt-2 text-sm leading-6 text-(--color-muted)">
+                                  Puedes asociar hasta {componentSlots} productos del inventario a este servicio.
+                                </p>
+                              </div>
+                              <div className="grid gap-3">
+                                {Array.from({ length: componentSlots }, (_, index) => {
+                                  const component = item.components[index];
+
+                                  return (
+                                    <div key={index} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                                      <Field label={`Suministro ${index + 1}`}>
+                                        <select
+                                          name={`componentProductId_${index}`}
+                                          defaultValue={component?.productId ?? ""}
+                                          className={inputClassName}
+                                        >
+                                          <option value="">Sin producto</option>
+                                          {products.map((product) => (
+                                            <option key={product.id} value={product.id}>
+                                              {product.name} · {product.unit.toLowerCase()} · costo unidad {formatMoney(product.costPrice)}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </Field>
+                                      <Field label="Cantidad usada">
+                                        <input
+                                          name={`componentQuantity_${index}`}
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          defaultValue={component ? String(component.quantity) : ""}
+                                          className={inputClassName}
+                                          placeholder="Cantidad"
+                                        />
+                                      </Field>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                             <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
                           </form>
