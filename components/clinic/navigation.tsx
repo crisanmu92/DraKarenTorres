@@ -98,12 +98,38 @@ function ExportIcon(active: boolean) {
   );
 }
 
+function AccountsPayableIcon(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" className={`h-7 w-7 ${active ? "text-white" : "text-[#4b5567]"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 6.75h15" />
+      <path d="M6.75 4.5v15a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-15" />
+      <path d="M9 10.5h6" />
+      <path d="M9 14.25h4.5" />
+      <path d="M9 6.75h6" />
+    </svg>
+  );
+}
+
+function AccountsReceivableIcon(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" className={`h-7 w-7 ${active ? "text-white" : "text-[#4b5567]"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 6.75h15" />
+      <path d="M6.75 4.5v15a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-15" />
+      <path d="M9 9.75h6" />
+      <path d="M12 6.75v6" />
+      <path d="M9 14.25h6" />
+    </svg>
+  );
+}
+
 const links: NavLink[] = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/pacientes", label: "Pacientes", icon: PatientsIcon },
   { href: "/proveedores", label: "Proveedores", icon: SuppliersIcon },
   { href: "/inventario", label: "Inventario", icon: InventoryIcon },
   { href: "/servicios", label: "Servicios", icon: ServicesIcon },
+  { href: "/cuentas-por-cobrar", label: "Cuentas por cobrar", icon: AccountsReceivableIcon },
+  { href: "/cuentas-por-pagar", label: "Cuentas por pagar", icon: AccountsPayableIcon },
   { href: "/movimientos", label: "Movimientos", icon: MovementsIcon },
   { href: "/rentabilidad", label: "Rentabilidad", icon: ProfitabilityIcon },
   { href: "/export", label: "Descargar Excel", icon: ExportIcon },

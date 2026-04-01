@@ -62,6 +62,7 @@ model Patient {
   lastVisitAt        DateTime?
   nextVisitAt        DateTime?
   revenues           Revenue[]
+  accountsReceivable AccountReceivable[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -78,6 +79,7 @@ model Supplier {
   email             String?   @unique
   notes             String?
   products          Product[]
+  accountsPayable   AccountPayable[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -122,6 +124,7 @@ model SaleItem {
   product     Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
   components  SaleItemComponent[]
   revenues    Revenue[]
+  accountsReceivable AccountReceivable[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -193,6 +196,64 @@ model Expense {
 
   @@index([occurredAt])
   @@index([category])
+}
+
+model AccountPayable {
+  id              String    @id @default(cuid())
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  creditorName    String
+  description     String
+  amount          Decimal   @db.Decimal(12, 2)
+  debtDate        DateTime
+  nextPaymentDate DateTime?
+  paidAt          DateTime?
+  isCompleted     Boolean   @default(false)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([supplierId])
+  @@index([debtDate])
+  @@index([nextPaymentDate])
+  @@index([isCompleted])
+}
+
+model AccountReceivable {
+  id                 String                     @id @default(cuid())
+  patientId          String
+  saleItemId         String
+  serviceDate        DateTime
+  totalAmount        Decimal                    @db.Decimal(12, 2)
+  financedInstallments Int
+  nextDueDate        DateTime?
+  isCompleted        Boolean                    @default(false)
+  notes              String?
+  patient            Patient                    @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  saleItem           SaleItem                   @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+  payments           AccountReceivablePayment[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([patientId])
+  @@index([saleItemId])
+  @@index([serviceDate])
+  @@index([nextDueDate])
+  @@index([isCompleted])
+}
+
+model AccountReceivablePayment {
+  id                  String            @id @default(cuid())
+  accountReceivableId String
+  paidAt              DateTime
+  amount              Decimal           @db.Decimal(12, 2)
+  notes               String?
+  accountReceivable   AccountReceivable @relation(fields: [accountReceivableId], references: [id], onDelete: Cascade)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([accountReceivableId])
+  @@index([paidAt])
 }
 
 model InventoryMovement {

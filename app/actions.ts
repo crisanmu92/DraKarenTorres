@@ -163,7 +163,7 @@ async function getResolvedInventoryCost(
   overrideComponents?: Array<{ productId: string; quantity: Prisma.Decimal }>,
 ) {
   const components =
-    overrideComponents && overrideComponents.length > 0
+    overrideComponents !== undefined
       ? await tx.product
           .findMany({
             where: { id: { in: overrideComponents.map((component) => component.productId) } },
@@ -316,6 +316,8 @@ function finishMutation(extraPaths: string[] = []) {
     "/pacientes",
     "/ingresos",
     "/egresos",
+    "/cuentas-por-cobrar",
+    "/cuentas-por-pagar",
     "/reportes",
     "/proveedores",
     "/inventario",
@@ -533,22 +535,17 @@ export async function createSaleItem(formData: FormData) {
     "type",
   );
   const productId = getOptionalString(formData, "productId");
-  const components = parseInventoryComponents(formData);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const saleItem = await tx.saleItem.create({
-        data: {
-          name: getRequiredString(formData, "name"),
-          type,
-          description: getOptionalString(formData, "description"),
-          unitPrice: getRequiredDecimal(formData, "unitPrice"),
-          baseCost: getOptionalDecimal(formData, "baseCost"),
-          productId,
-        },
-      });
-
-      await syncSaleItemComponents(tx, saleItem.id, components);
+    await prisma.saleItem.create({
+      data: {
+        name: getRequiredString(formData, "name"),
+        type,
+        description: getOptionalString(formData, "description"),
+        unitPrice: getRequiredDecimal(formData, "unitPrice"),
+        baseCost: getOptionalDecimal(formData, "baseCost"),
+        productId,
+      },
     });
 
     finishMutation([redirectTo]);
@@ -646,6 +643,117 @@ export async function createExpense(formData: FormData) {
 
     redirectWithMessage(redirectTo, {
       error: getFriendlyErrorMessage(error, "No se pudo registrar el egreso."),
+    });
+  }
+}
+
+export async function createAccountPayable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-pagar");
+
+  try {
+    await prisma.accountPayable.create({
+      data: {
+        supplierId: getOptionalString(formData, "supplierId"),
+        creditorName: getRequiredString(formData, "creditorName"),
+        description: getRequiredString(formData, "description"),
+        amount: getRequiredDecimal(formData, "amount"),
+        debtDate: getOptionalDate(formData, "debtDate") ?? new Date(),
+        nextPaymentDate: getOptionalDate(formData, "nextPaymentDate"),
+        paidAt: getOptionalDate(formData, "paidAt"),
+        isCompleted: false,
+        notes: getOptionalString(formData, "notes"),
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por pagar guardada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar la cuenta por pagar."),
+    });
+  }
+}
+
+export async function createAccountReceivable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-cobrar");
+
+  try {
+    await prisma.accountReceivable.create({
+      data: {
+        patientId: getRequiredString(formData, "patientId"),
+        saleItemId: getRequiredString(formData, "saleItemId"),
+        serviceDate: getOptionalDate(formData, "serviceDate") ?? new Date(),
+        totalAmount: getRequiredDecimal(formData, "totalAmount"),
+        financedInstallments: Number(getRequiredString(formData, "financedInstallments")),
+        nextDueDate: getOptionalDate(formData, "nextDueDate"),
+        notes: getOptionalString(formData, "notes"),
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por cobrar guardada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar la cuenta por cobrar."),
+    });
+  }
+}
+
+export async function createAccountReceivablePayment(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-cobrar");
+
+  try {
+    const accountReceivableId = getRequiredString(formData, "accountReceivableId");
+
+    await prisma.$transaction(async (tx) => {
+      await tx.accountReceivablePayment.create({
+        data: {
+          accountReceivableId,
+          paidAt: getOptionalDate(formData, "paidAt") ?? new Date(),
+          amount: getRequiredDecimal(formData, "amount"),
+          notes: getOptionalString(formData, "notes"),
+        },
+      });
+
+      const account = await tx.accountReceivable.findUnique({
+        where: { id: accountReceivableId },
+        select: {
+          totalAmount: true,
+          payments: {
+            select: { amount: true },
+          },
+        },
+      });
+
+      if (account) {
+        const paidTotal = account.payments.reduce((sum, payment) => sum.add(payment.amount), new Prisma.Decimal(0));
+
+        await tx.accountReceivable.update({
+          where: { id: accountReceivableId },
+          data: {
+            isCompleted: paidTotal.gte(account.totalAmount),
+          },
+        });
+      }
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Abono registrado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo registrar el abono."),
     });
   }
 }
@@ -841,7 +949,6 @@ export async function updateSaleItem(formData: FormData) {
   const id = getId(formData);
   const type = getEnumValue(getRequiredString(formData, "type"), saleItemTypes, "type");
   const productId = getOptionalString(formData, "productId");
-  const components = parseInventoryComponents(formData);
 
   await prisma.$transaction(async (tx) => {
     await tx.saleItem.update({
@@ -856,7 +963,7 @@ export async function updateSaleItem(formData: FormData) {
       },
     });
 
-    await syncSaleItemComponents(tx, id, components);
+    await tx.saleItemComponent.deleteMany({ where: { saleItemId: id } });
   });
 
   finishMutation();
@@ -930,6 +1037,170 @@ export async function deleteRevenue(formData: FormData) {
   });
 
   finishMutation();
+}
+
+export async function updateAccountReceivable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-cobrar");
+
+  try {
+    await prisma.accountReceivable.update({
+      where: { id: getId(formData) },
+      data: {
+        patientId: getRequiredString(formData, "patientId"),
+        saleItemId: getRequiredString(formData, "saleItemId"),
+        serviceDate: getOptionalDate(formData, "serviceDate") ?? new Date(),
+        totalAmount: getRequiredDecimal(formData, "totalAmount"),
+        financedInstallments: Number(getRequiredString(formData, "financedInstallments")),
+        nextDueDate: getOptionalDate(formData, "nextDueDate"),
+        notes: getOptionalString(formData, "notes"),
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por cobrar actualizada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar la cuenta por cobrar."),
+    });
+  }
+}
+
+export async function toggleAccountReceivableCompleted(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-cobrar");
+
+  try {
+    await prisma.accountReceivable.update({
+      where: { id: getId(formData) },
+      data: {
+        isCompleted: getOptionalString(formData, "isCompleted") === "true",
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Estado de la cuenta actualizado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar el estado de la cuenta."),
+    });
+  }
+}
+
+export async function deleteAccountReceivable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-cobrar");
+
+  try {
+    await prisma.accountReceivable.delete({
+      where: { id: getId(formData) },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por cobrar eliminada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo eliminar la cuenta por cobrar."),
+    });
+  }
+}
+
+export async function updateAccountPayable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-pagar");
+
+  try {
+    await prisma.accountPayable.update({
+      where: { id: getId(formData) },
+      data: {
+        supplierId: getOptionalString(formData, "supplierId"),
+        creditorName: getRequiredString(formData, "creditorName"),
+        description: getRequiredString(formData, "description"),
+        amount: getRequiredDecimal(formData, "amount"),
+        debtDate: getOptionalDate(formData, "debtDate") ?? new Date(),
+        nextPaymentDate: getOptionalDate(formData, "nextPaymentDate"),
+        paidAt: getOptionalDate(formData, "paidAt"),
+        notes: getOptionalString(formData, "notes"),
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por pagar actualizada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar la cuenta por pagar."),
+    });
+  }
+}
+
+export async function toggleAccountPayableCompleted(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-pagar");
+
+  try {
+    const id = getId(formData);
+    const isCompleted = getOptionalString(formData, "isCompleted") === "true";
+
+    const current = await prisma.accountPayable.findUnique({
+      where: { id },
+      select: { paidAt: true },
+    });
+
+    await prisma.accountPayable.update({
+      where: { id },
+      data: {
+        isCompleted,
+        paidAt: isCompleted ? current?.paidAt ?? new Date() : null,
+      },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, {
+      success: isCompleted
+        ? "Cuenta marcada como pagada."
+        : "Cuenta marcada como pendiente.",
+    });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar el estado de la cuenta."),
+    });
+  }
+}
+
+export async function deleteAccountPayable(formData: FormData) {
+  const redirectTo = getRedirectTarget(formData, "/cuentas-por-pagar");
+
+  try {
+    await prisma.accountPayable.delete({
+      where: { id: getId(formData) },
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Cuenta por pagar eliminada correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo eliminar la cuenta por pagar."),
+    });
+  }
 }
 
 export async function updateExpense(formData: FormData) {
