@@ -8,6 +8,7 @@ import {
 import {
   EmptyState,
   Field,
+  FilterTabs,
   FormCard,
   Notice,
   SectionHeading,
@@ -21,12 +22,28 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type AccountsFilter = "active" | "completed" | "all";
+
+function getAccountsFilter(filter?: string): AccountsFilter {
+  if (filter === "completed" || filter === "all") {
+    return filter;
+  }
+
+  return "active";
+}
+
+function buildFilterPath(basePath: string, filter: AccountsFilter) {
+  return filter === "active" ? basePath : `${basePath}?filter=${filter}`;
+}
+
 export default async function AccountsPayablePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; success?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; filter?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const selectedFilter = getAccountsFilter(resolvedSearchParams?.filter);
+  const redirectTo = buildFilterPath("/cuentas-por-pagar", selectedFilter);
   let accountsPayable: Array<{
     id: string;
     creditorName: string;
@@ -46,7 +63,6 @@ export default async function AccountsPayablePage({
     [accountsPayable, suppliers] = await Promise.all([
       prisma.accountPayable.findMany({
         orderBy: [{ isCompleted: "asc" }, { nextPaymentDate: "asc" }, { debtDate: "desc" }],
-        take: 40,
         select: {
           id: true,
           creditorName: true,
@@ -69,12 +85,38 @@ export default async function AccountsPayablePage({
     pageError = "No se pudo cargar la informacion de cuentas por pagar.";
   }
 
+  const activeAccounts = accountsPayable.filter((item) => !item.isCompleted);
+  const completedAccounts = accountsPayable.filter((item) => item.isCompleted);
+  const visibleAccounts =
+    selectedFilter === "completed"
+      ? completedAccounts
+      : selectedFilter === "all"
+        ? accountsPayable
+        : activeAccounts;
+  const filterOptions = [
+    { href: buildFilterPath("/cuentas-por-pagar", "active"), label: `Activas (${activeAccounts.length})`, active: selectedFilter === "active" },
+    { href: buildFilterPath("/cuentas-por-pagar", "completed"), label: `Historial (${completedAccounts.length})`, active: selectedFilter === "completed" },
+    { href: buildFilterPath("/cuentas-por-pagar", "all"), label: `Todas (${accountsPayable.length})`, active: selectedFilter === "all" },
+  ];
+  const emptyStateMessage =
+    selectedFilter === "completed"
+      ? "Aun no hay cuentas por pagar completadas en el historial."
+      : selectedFilter === "all"
+        ? "Aun no hay cuentas por pagar registradas."
+        : "Aun no hay cuentas por pagar activas.";
+  const listDescription =
+    selectedFilter === "completed"
+      ? "Aqui ves el historial de cuentas por pagar completadas con su fecha final de pago."
+      : selectedFilter === "all"
+        ? "Aqui ves las cuentas activas y el historial completo para revisar deudas, pagos y estado."
+        : "Aqui ves solo las cuentas por pagar activas para enfocarte en lo pendiente y la siguiente fecha de pago.";
+
   return (
     <>
       <SectionHeading
         eyebrow="Finanzas"
         title="Cuentas por pagar"
-        description="Lleva una lista de deudas pendientes con su fecha de deuda, proximo pago, fecha de pago y estado de completado."
+        description="Aqui puedes separar las cuentas activas del historial completado para tener claro que sigue pendiente y que ya fue pagado."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
@@ -84,9 +126,10 @@ export default async function AccountsPayablePage({
       <FormCard
         eyebrow="Lista"
         title="Cuentas por pagar registradas"
-        description="Aqui ves la deuda, la siguiente fecha de pago, la fecha en que se pago y si ya esta completada."
+        description={listDescription}
       >
-        <div className="mb-5 flex justify-end">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <FilterTabs options={filterOptions} />
           <Link
             href="/cuentas-por-pagar/nuevo"
             className="inline-flex items-center justify-center rounded-full bg-[#111827] px-5 py-3 text-sm font-semibold text-white"
@@ -95,10 +138,10 @@ export default async function AccountsPayablePage({
           </Link>
         </div>
         <div className="grid gap-3">
-          {accountsPayable.length === 0 ? (
-            <EmptyState>Aun no hay cuentas por pagar registradas.</EmptyState>
+          {visibleAccounts.length === 0 ? (
+            <EmptyState>{emptyStateMessage}</EmptyState>
           ) : (
-            accountsPayable.map((item) => (
+            visibleAccounts.map((item) => (
               <div key={item.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -113,7 +156,7 @@ export default async function AccountsPayablePage({
                   <p>Fecha de pago: {formatDate(item.paidAt)}</p>
                   <form action={toggleAccountPayableCompleted} className="sm:col-span-2">
                     <input type="hidden" name="id" value={item.id} />
-                    <input type="hidden" name="redirectTo" value="/cuentas-por-pagar" />
+                    <input type="hidden" name="redirectTo" value={redirectTo} />
                     <input type="hidden" name="isCompleted" value={item.isCompleted ? "false" : "true"} />
                     <div className="inline-flex items-center gap-3 rounded-2xl border border-(--color-line) bg-[#f8fbff] px-4 py-3 text-sm text-(--color-ink)">
                       <input
@@ -137,7 +180,7 @@ export default async function AccountsPayablePage({
                   <div className="mt-4 grid gap-4">
                     <form action={updateAccountPayable} className="grid gap-4">
                       <input type="hidden" name="id" value={item.id} />
-                      <input type="hidden" name="redirectTo" value="/cuentas-por-pagar" />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
                       <div className={formGridClassName}>
                         <Field label="Acreedor">
                           <input name="creditorName" defaultValue={item.creditorName} className={inputClassName} required />
@@ -172,13 +215,13 @@ export default async function AccountsPayablePage({
                         <textarea name="notes" defaultValue={item.notes ?? ""} className={textareaClassName} />
                       </Field>
                       <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
-                    </form>
-                    <form action={deleteAccountPayable}>
-                      <input type="hidden" name="id" value={item.id} />
-                      <input type="hidden" name="redirectTo" value="/cuentas-por-pagar" />
-                      <SubmitButton label="Eliminar cuenta" pendingLabel="Eliminando..." variant="danger" />
-                    </form>
-                  </div>
+                      </form>
+                      <form action={deleteAccountPayable}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                        <SubmitButton label="Eliminar cuenta" pendingLabel="Eliminando..." variant="danger" />
+                      </form>
+                    </div>
                 </details>
               </div>
             ))

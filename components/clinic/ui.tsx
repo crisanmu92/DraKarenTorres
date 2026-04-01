@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export const sectionCardClassName =
@@ -52,6 +53,34 @@ export function Notice({
   return (
     <div className={`rounded-3xl border px-4 py-4 text-sm font-medium ${className}`}>
       {children}
+    </div>
+  );
+}
+
+export function FilterTabs({
+  options,
+}: {
+  options: Array<{
+    href: string;
+    label: string;
+    active?: boolean;
+  }>;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {options.map((option) => (
+        <Link
+          key={option.href}
+          href={option.href}
+          className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+            option.active
+              ? "bg-[#2f5be7] text-white shadow-[0_12px_24px_rgba(47,91,231,0.22)]"
+              : "border border-(--color-line) bg-[#f8fbff] text-(--color-ink) hover:bg-[#eef4ff]"
+          }`}
+        >
+          {option.label}
+        </Link>
+      ))}
     </div>
   );
 }

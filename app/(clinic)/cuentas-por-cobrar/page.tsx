@@ -10,6 +10,7 @@ import {
 import {
   EmptyState,
   Field,
+  FilterTabs,
   FormCard,
   Notice,
   SectionHeading,
@@ -23,12 +24,28 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type AccountsFilter = "active" | "completed" | "all";
+
+function getAccountsFilter(filter?: string): AccountsFilter {
+  if (filter === "completed" || filter === "all") {
+    return filter;
+  }
+
+  return "active";
+}
+
+function buildFilterPath(basePath: string, filter: AccountsFilter) {
+  return filter === "active" ? basePath : `${basePath}?filter=${filter}`;
+}
+
 export default async function AccountsReceivablePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; success?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; filter?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const selectedFilter = getAccountsFilter(resolvedSearchParams?.filter);
+  const redirectTo = buildFilterPath("/cuentas-por-cobrar", selectedFilter);
   let accountsReceivable: Array<{
     id: string;
     patientId: string;
@@ -56,7 +73,6 @@ export default async function AccountsReceivablePage({
     [accountsReceivable, patients, saleItems] = await Promise.all([
       prisma.accountReceivable.findMany({
         orderBy: [{ isCompleted: "asc" }, { nextDueDate: "asc" }, { serviceDate: "desc" }],
-        take: 40,
         include: {
           patient: {
             select: {
@@ -93,12 +109,38 @@ export default async function AccountsReceivablePage({
     pageError = "No se pudo cargar la informacion de cuentas por cobrar.";
   }
 
+  const activeAccounts = accountsReceivable.filter((item) => !item.isCompleted);
+  const completedAccounts = accountsReceivable.filter((item) => item.isCompleted);
+  const visibleAccounts =
+    selectedFilter === "completed"
+      ? completedAccounts
+      : selectedFilter === "all"
+        ? accountsReceivable
+        : activeAccounts;
+  const filterOptions = [
+    { href: buildFilterPath("/cuentas-por-cobrar", "active"), label: `Activas (${activeAccounts.length})`, active: selectedFilter === "active" },
+    { href: buildFilterPath("/cuentas-por-cobrar", "completed"), label: `Historial (${completedAccounts.length})`, active: selectedFilter === "completed" },
+    { href: buildFilterPath("/cuentas-por-cobrar", "all"), label: `Todas (${accountsReceivable.length})`, active: selectedFilter === "all" },
+  ];
+  const emptyStateMessage =
+    selectedFilter === "completed"
+      ? "Aun no hay cuentas por cobrar completadas en el historial."
+      : selectedFilter === "all"
+        ? "Aun no hay cuentas por cobrar registradas."
+        : "Aun no hay cuentas por cobrar activas.";
+  const listDescription =
+    selectedFilter === "completed"
+      ? "Aqui ves el historial de cuentas por cobrar completadas con sus pagos y fechas registradas."
+      : selectedFilter === "all"
+        ? "Aqui ves las cuentas activas y el historial completo para revisar estado, abonos y saldo."
+        : "Aqui ves solo las cuentas activas para enfocarte en el saldo pendiente y la proxima fecha de cobro.";
+
   return (
     <>
       <SectionHeading
         eyebrow="Finanzas"
         title="Cuentas por cobrar"
-        description="Aqui ves pacientes con servicios financiados, el numero de cuotas, las fechas pagadas, los abonos realizados y el saldo pendiente."
+        description="Aqui puedes separar las cuentas activas del historial completado, revisar abonos y seguir el saldo pendiente por paciente."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
@@ -108,9 +150,10 @@ export default async function AccountsReceivablePage({
       <FormCard
         eyebrow="Lista"
         title="Cuentas por cobrar registradas"
-        description="Revisa el paciente, el servicio realizado, la fecha del servicio, las cuotas financiadas, los abonos y el saldo."
+        description={listDescription}
       >
-        <div className="mb-5 flex justify-end">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <FilterTabs options={filterOptions} />
           <Link
             href="/cuentas-por-cobrar/nuevo"
             className="inline-flex items-center justify-center rounded-full bg-[#111827] px-5 py-3 text-sm font-semibold text-white"
@@ -119,10 +162,10 @@ export default async function AccountsReceivablePage({
           </Link>
         </div>
         <div className="grid gap-3">
-          {accountsReceivable.length === 0 ? (
-            <EmptyState>Aun no hay cuentas por cobrar registradas.</EmptyState>
+          {visibleAccounts.length === 0 ? (
+            <EmptyState>{emptyStateMessage}</EmptyState>
           ) : (
-            accountsReceivable.map((item) => {
+            visibleAccounts.map((item) => {
               const totalPaid = item.payments.reduce((sum, payment) => sum + toNumber(payment.amount), 0);
               const pendingAmount = toNumber(item.totalAmount) - totalPaid;
 
@@ -154,7 +197,7 @@ export default async function AccountsReceivablePage({
                   <div className="mt-4 grid gap-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
                     <form action={toggleAccountReceivableCompleted} className="flex flex-wrap items-center gap-3">
                       <input type="hidden" name="id" value={item.id} />
-                      <input type="hidden" name="redirectTo" value="/cuentas-por-cobrar" />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
                       <input type="hidden" name="isCompleted" value={item.isCompleted ? "false" : "true"} />
                       <div className="inline-flex items-center gap-3 rounded-2xl border border-(--color-line) bg-white px-4 py-3 text-sm text-(--color-ink)">
                         <input type="checkbox" checked={item.isCompleted} readOnly className="h-4 w-4" />
@@ -167,7 +210,7 @@ export default async function AccountsReceivablePage({
 
                     <form action={createAccountReceivablePayment} className="grid gap-4">
                       <input type="hidden" name="accountReceivableId" value={item.id} />
-                      <input type="hidden" name="redirectTo" value="/cuentas-por-cobrar" />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
                       <div className={formGridClassName}>
                         <Field label="Fecha del abono">
                           <input name="paidAt" type="date" className={inputClassName} />
@@ -192,7 +235,7 @@ export default async function AccountsReceivablePage({
                     <div className="mt-4 grid gap-4">
                       <form action={updateAccountReceivable} className="grid gap-4">
                         <input type="hidden" name="id" value={item.id} />
-                        <input type="hidden" name="redirectTo" value="/cuentas-por-cobrar" />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
                         <div className={formGridClassName}>
                           <Field label="Paciente">
                             <select name="patientId" defaultValue={item.patientId} className={inputClassName} required>
@@ -232,7 +275,7 @@ export default async function AccountsReceivablePage({
                       </form>
                       <form action={deleteAccountReceivable}>
                         <input type="hidden" name="id" value={item.id} />
-                        <input type="hidden" name="redirectTo" value="/cuentas-por-cobrar" />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
                         <SubmitButton label="Eliminar cuenta" pendingLabel="Eliminando..." variant="danger" />
                       </form>
                     </div>
