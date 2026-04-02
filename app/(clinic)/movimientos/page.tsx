@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { EmptyState, Field, FilterTabs, FormCard, SectionHeading, inputClassName, sectionCardClassName } from "@/components/clinic/ui";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { ExportLink } from "@/components/forms/export-link";
 import { formatDate, formatDateInput, formatMoney, formatPercent, getNetAmount, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
@@ -422,6 +423,10 @@ export default async function FinancePage({
         title="Finanzas"
         description="Aqui puedes revisar tu actividad diaria, semanal o mensual, ver cobros, pagos, compras, ventas y entender con claridad cuanto te esta quedando de utilidad."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="finances" label="Descargar Excel de finanzas" />
+      </div>
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 

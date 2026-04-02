@@ -2,6 +2,7 @@ import Link from "next/link";
 import { InventoryMovementType, InventoryUnit } from "@prisma/client";
 
 import { EmptyState, FormCard, SectionHeading } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import { formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
@@ -68,6 +69,10 @@ export default async function InventoryPage() {
         title="Lista de productos"
         description="Aqui solo ves el stock actual de cada producto. Las compras se registran dentro de cada proveedor y cada uso o salida debe disminuir la cantidad actual."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="inventory" label="Descargar Excel de inventario" />
+      </div>
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 

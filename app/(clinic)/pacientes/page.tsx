@@ -11,6 +11,7 @@ import {
   inputClassName,
   textareaClassName,
 } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatDateInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
@@ -120,6 +121,10 @@ export default async function PatientsPage({
         description="Consulta tu base de pacientes en formato lista y entra a cada ficha para agregar los servicios realizados."
       />
 
+      <div className="flex justify-end">
+        <ExportLink section="patients" label="Descargar Excel de pacientes" />
+      </div>
+
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}
       {pageError ? <Notice tone="error">{pageError}</Notice> : null}
@@ -145,12 +150,12 @@ export default async function PatientsPage({
               >
                 Buscar
               </button>
-              <a
+              <Link
                 href="/pacientes"
                 className="inline-flex items-center justify-center rounded-full border border-(--color-line) bg-white px-5 py-3 text-sm font-semibold text-(--color-ink)"
               >
                 Limpiar
-              </a>
+              </Link>
             </form>
             <Link
               href="/pacientes/nuevo"

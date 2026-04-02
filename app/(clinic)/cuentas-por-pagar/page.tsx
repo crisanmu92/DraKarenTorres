@@ -16,6 +16,7 @@ import {
   inputClassName,
   textareaClassName,
 } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatDateInput, formatMoney } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
@@ -118,6 +119,10 @@ export default async function AccountsPayablePage({
         title="Cuentas por pagar"
         description="Aqui puedes separar las cuentas activas del historial completado para tener claro que sigue pendiente y que ya fue pagado."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="accountsPayable" label="Descargar Excel de cuentas por pagar" />
+      </div>
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}

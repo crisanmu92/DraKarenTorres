@@ -1,6 +1,9 @@
+import Link from "next/link";
+
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { OverviewPanel } from "@/components/dashboard/overview-panel";
 import { EmptyState, SectionHeading, sectionCardClassName } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import {
   expenseCategoryLabels,
   formatDate,
@@ -166,6 +169,10 @@ export default async function DashboardPage({
 
   return (
     <>
+      <div className="flex justify-end">
+        <ExportLink section="dashboard" label="Descargar Excel del dashboard" />
+      </div>
+
       <header className="grid gap-4 rounded-[28px] border border-(--color-line) bg-white p-5 shadow-(--shadow-card) lg:grid-cols-[1.25fr_0.75fr] lg:p-7">
         <div className="space-y-5">
           <div className="inline-flex w-fit rounded-full border border-[#dbe4ee] bg-[#f7fafc] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0f172a]">
@@ -301,18 +308,18 @@ export default async function DashboardPage({
             description="Accesos pensados como una app de operaciones financieras."
           />
           <div className="mt-6 grid gap-3">
-            <a href="/pacientes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+            <Link href="/pacientes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
               Ir a clientes
-            </a>
-            <a href="/ingresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+            </Link>
+            <Link href="/ingresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
               Registrar ingreso
-            </a>
-            <a href="/egresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+            </Link>
+            <Link href="/egresos" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
               Registrar egreso
-            </a>
-            <a href="/reportes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
+            </Link>
+            <Link href="/reportes" className="rounded-3xl border border-[#dbe4ee] bg-[#f8fbff] px-4 py-4 text-sm font-semibold text-(--color-ink)">
               Ver reportes
-            </a>
+            </Link>
           </div>
         </article>
       </section>

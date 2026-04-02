@@ -1,5 +1,6 @@
 import { EmptyState, SectionHeading, sectionCardClassName } from "@/components/clinic/ui";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { ExportLink } from "@/components/forms/export-link";
 import { formatDate, formatMoney, getNetAmount, monthFormatter, toNumber } from "@/lib/clinic-format";
 import { getMonthRange } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
@@ -57,6 +58,10 @@ export default async function ProfitabilityPage({
         title="Paciente, servicio, costo y ganancia"
         description="Aqui ves por cada ingreso cuanto cobraste, cuanto te costo y cuanto gano realmente el servicio."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="profitability" label="Descargar Excel de rentabilidad" />
+      </div>
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 

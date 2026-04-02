@@ -18,6 +18,7 @@ import {
   inputClassName,
   textareaClassName,
 } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatDateInput, formatMoney, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
@@ -142,6 +143,10 @@ export default async function AccountsReceivablePage({
         title="Cuentas por cobrar"
         description="Aqui puedes separar las cuentas activas del historial completado, revisar abonos y seguir el saldo pendiente por paciente."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="accountsReceivable" label="Descargar Excel de cuentas por cobrar" />
+      </div>
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
       {resolvedSearchParams?.error ? <Notice tone="error">{resolvedSearchParams.error}</Notice> : null}

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { deleteSupplier, updateSupplier } from "@/app/actions";
 import { EmptyState, Field, FormCard, formGridClassName, inputClassName, SectionHeading, textareaClassName } from "@/components/clinic/ui";
+import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { prisma } from "@/lib/prisma";
 
@@ -31,6 +32,10 @@ export default async function SuppliersPage() {
         title="Registro de proveedores"
         description="Aqui registras laboratorios o distribuidores. Entra a cada proveedor para cargar lo que le compraste."
       />
+
+      <div className="flex justify-end">
+        <ExportLink section="suppliers" label="Descargar Excel de proveedores" />
+      </div>
 
       {pageError ? <EmptyState>{pageError}</EmptyState> : null}
 
