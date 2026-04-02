@@ -130,7 +130,7 @@ const links: NavLink[] = [
   { href: "/servicios", label: "Servicios", icon: ServicesIcon },
   { href: "/cuentas-por-cobrar", label: "Cuentas por cobrar", icon: AccountsReceivableIcon },
   { href: "/cuentas-por-pagar", label: "Cuentas por pagar", icon: AccountsPayableIcon },
-  { href: "/movimientos", label: "Movimientos", icon: MovementsIcon },
+  { href: "/movimientos", label: "Finanzas", icon: MovementsIcon },
   { href: "/rentabilidad", label: "Rentabilidad", icon: ProfitabilityIcon },
   { href: "/export", label: "Descargar Excel", icon: ExportIcon },
 ];
