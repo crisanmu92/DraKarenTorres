@@ -170,7 +170,7 @@ export default async function PatientsPage({
               {query ? "No se encontraron pacientes con esa busqueda." : "Aun no hay pacientes registrados."}
             </EmptyState>
           ) : (
-          <div className="overflow-hidden rounded-[28px] border border-(--color-line)">
+          <div className="overflow-visible rounded-[28px] border border-(--color-line)">
               <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.3fr)_minmax(140px,0.8fr)_minmax(150px,0.75fr)_minmax(170px,0.85fr)_minmax(170px,0.95fr)_180px] md:gap-4">
                 <p>Nombre</p>
                 <p>Telefono</p>
