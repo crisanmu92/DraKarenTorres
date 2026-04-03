@@ -68,7 +68,8 @@ export default async function PatientsPage({
     importantNotes: string | null;
     lastVisitAt: Date | null;
     nextVisitAt: Date | null;
-    revenues: Array<{ id: string; amount: unknown; discountAmount: unknown; costAmount: unknown }>;
+    followUps: Array<{ id: string; controlDate: Date }>;
+    revenues: Array<{ id: string; amount: unknown; discountAmount: unknown; costAmount: unknown; occurredAt: Date }>;
   }> = [];
   let pageError: string | null = null;
 
@@ -99,12 +100,22 @@ export default async function PatientsPage({
         importantNotes: true,
         lastVisitAt: true,
         nextVisitAt: true,
+        followUps: {
+          orderBy: [{ controlDate: "asc" }],
+          take: 1,
+          select: {
+            id: true,
+            controlDate: true,
+          },
+        },
         revenues: {
+          orderBy: [{ occurredAt: "asc" }],
           select: {
             id: true,
             amount: true,
             discountAmount: true,
             costAmount: true,
+            occurredAt: true,
           },
         },
       },
@@ -171,9 +182,11 @@ export default async function PatientsPage({
             </EmptyState>
           ) : (
           <div className="overflow-visible rounded-[28px] border border-(--color-line)">
-              <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.3fr)_minmax(140px,0.8fr)_minmax(150px,0.75fr)_minmax(170px,0.85fr)_minmax(170px,0.95fr)_180px] md:gap-4">
+              <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.2fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(120px,0.65fr)_minmax(150px,0.75fr)_minmax(150px,0.8fr)_180px] md:gap-4">
                 <p>Nombre</p>
                 <p>Telefono</p>
+                <p>Primera visita</p>
+                <p>Proxima visita</p>
                 <p>Servicios hechos</p>
                 <p>Total cobrado</p>
                 <p>Ganancia acumulada</p>
@@ -182,6 +195,14 @@ export default async function PatientsPage({
               <div className="divide-y divide-(--color-line)">
                 {patients.map((patient) => {
                   const fullName = `${patient.firstName} ${patient.lastName}`;
+                  const firstRevenueDate = patient.revenues[0]?.occurredAt ?? null;
+                  const firstFollowUpDate = patient.followUps[0]?.controlDate ?? null;
+                  const firstVisitDate =
+                    firstRevenueDate && firstFollowUpDate
+                      ? firstRevenueDate <= firstFollowUpDate
+                        ? firstRevenueDate
+                        : firstFollowUpDate
+                      : firstRevenueDate ?? firstFollowUpDate ?? patient.lastVisitAt;
                   const totalCharged = patient.revenues.reduce(
                     (sum, revenue) => sum + getNetAmount(revenue.amount, revenue.discountAmount),
                     0,
@@ -194,12 +215,14 @@ export default async function PatientsPage({
 
                   return (
                     <div key={patient.id} className="bg-white">
-                      <div className="grid gap-3 px-4 py-5 md:grid-cols-[minmax(220px,1.3fr)_minmax(140px,0.8fr)_minmax(150px,0.75fr)_minmax(170px,0.85fr)_minmax(170px,0.95fr)_180px] md:items-center md:gap-4">
+                      <div className="grid gap-3 px-4 py-5 md:grid-cols-[minmax(220px,1.2fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(120px,0.65fr)_minmax(150px,0.75fr)_minmax(150px,0.8fr)_180px] md:items-center md:gap-4">
                         <div>
                           <p className="font-semibold text-(--color-ink)">{fullName}</p>
                           <p className="mt-1 text-sm text-(--color-muted)">{patient.identification}</p>
                         </div>
                         <p className="text-sm text-(--color-ink)">{patient.phone || "-"}</p>
+                        <p className="text-sm text-(--color-ink)">{formatDate(firstVisitDate)}</p>
+                        <p className="text-sm text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
                         <p className="text-sm text-(--color-ink)">{patient.revenues.length}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalProfit)}</p>
@@ -249,10 +272,11 @@ export default async function PatientsPage({
                       </div>
                       <div className="grid gap-2 border-t border-(--color-line) bg-[#fcfaf7] px-4 py-3 text-sm text-(--color-muted) md:hidden">
                         <p>Telefono: {patient.phone || "-"}</p>
+                        <p>Primera visita: {formatDate(firstVisitDate)}</p>
+                        <p>Proxima visita: {formatDate(patient.nextVisitAt)}</p>
                         <p>Servicios hechos: {patient.revenues.length}</p>
                         <p>Total cobrado: {formatMoney(totalCharged)}</p>
                         <p>Ganancia acumulada: {formatMoney(totalProfit)}</p>
-                        <p>Proximo seguimiento: {formatDate(patient.nextVisitAt)}</p>
                       </div>
                     </div>
                   );
