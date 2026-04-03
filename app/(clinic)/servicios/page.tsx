@@ -85,7 +85,7 @@ export default async function ServicesPage({
         {saleItems.length === 0 ? (
           <EmptyState>Aun no hay servicios registrados.</EmptyState>
         ) : (
-          <div className="overflow-hidden rounded-[28px] border border-(--color-line)">
+          <div className="overflow-visible rounded-[28px] border border-(--color-line)">
             <div className="hidden bg-[#f8f6f2] px-4 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-(--color-muted) md:grid md:grid-cols-[minmax(220px,1.3fr)_minmax(160px,0.9fr)_minmax(170px,0.9fr)_180px] md:gap-4">
               <p>Nombre</p>
               <p>Tipo</p>
