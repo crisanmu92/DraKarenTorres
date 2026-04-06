@@ -8,6 +8,7 @@ import {
   Prisma,
   SaleItemType,
 } from "@prisma/client";
+import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
@@ -20,6 +21,7 @@ const inventoryUnits = Object.values(InventoryUnit);
 const paymentMethods = Object.values(PaymentMethod);
 const saleItemTypes = Object.values(SaleItemType);
 const serviceComponentSlots = 5;
+const maxFollowUpImageSizeBytes = 4 * 1024 * 1024;
 
 function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -85,6 +87,53 @@ function getOptionalDate(formData: FormData, key: string) {
   return date;
 }
 
+function getOptionalFile(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (!(value instanceof File) || value.size === 0) {
+    return undefined;
+  }
+
+  if (value.size > maxFollowUpImageSizeBytes) {
+    throw new Error("Cada foto debe pesar maximo 4 MB despues de comprimirse.");
+  }
+
+  return value;
+}
+
+function sanitizeFilename(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function uploadPatientFollowUpImage({
+  patientId,
+  file,
+  slot,
+}: {
+  patientId: string;
+  file?: File;
+  slot: "before" | "after";
+}) {
+  if (!file) {
+    return undefined;
+  }
+
+  const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const safeExtension = extension ? sanitizeFilename(extension) : "jpg";
+  const pathname = `patients/${patientId}/follow-ups/${slot}-${Date.now()}-${crypto.randomUUID()}.${safeExtension}`;
+
+  const blob = await put(pathname, file, {
+    access: "public",
+    contentType: file.type || undefined,
+    addRandomSuffix: false,
+  });
+
+  return blob.url;
+}
+
 function aggregateQuantitiesByProduct<T extends { productId: string; quantity: Prisma.Decimal }>(items: T[]) {
   const totals = new Map<string, Prisma.Decimal>();
 
@@ -98,8 +147,13 @@ function aggregateQuantitiesByProduct<T extends { productId: string; quantity: P
 
 function parseInventoryComponents(formData: FormData) {
   const components: Array<{ productId: string; quantity: Prisma.Decimal }> = [];
+  const requestedCount = Number(getOptionalString(formData, "componentCount") ?? String(serviceComponentSlots));
+  const totalSlots =
+    Number.isNaN(requestedCount) || requestedCount <= 0
+      ? serviceComponentSlots
+      : Math.min(requestedCount, 50);
 
-  for (let index = 0; index < serviceComponentSlots; index += 1) {
+  for (let index = 0; index < totalSlots; index += 1) {
     const productId = getOptionalString(formData, `componentProductId_${index}`);
     const quantityRaw = getOptionalString(formData, `componentQuantity_${index}`);
 
@@ -774,6 +828,168 @@ export async function createInventoryMovement(formData: FormData) {
   });
 
   finishMutation();
+}
+
+export async function createPatientFollowUp(formData: FormData) {
+  const patientId = getRequiredString(formData, "patientId");
+  const redirectTo = getRedirectTarget(formData, `/pacientes/${patientId}`);
+  const controlDate = getOptionalDate(formData, "controlDate") ?? new Date();
+  const nextFollowUpAt = getOptionalDate(formData, "nextFollowUpAt");
+
+  try {
+    const beforeImageUrl =
+      (await uploadPatientFollowUpImage({
+        patientId,
+        file: getOptionalFile(formData, "beforeImageFile"),
+        slot: "before",
+      })) ?? getOptionalString(formData, "beforeImageUrl");
+    const afterImageUrl =
+      (await uploadPatientFollowUpImage({
+        patientId,
+        file: getOptionalFile(formData, "afterImageFile"),
+        slot: "after",
+      })) ?? getOptionalString(formData, "afterImageUrl");
+
+    await prisma.$transaction(async (tx) => {
+      await tx.patientFollowUp.create({
+        data: {
+          patientId,
+          controlDate,
+          title: getRequiredString(formData, "title"),
+          notes: getOptionalString(formData, "notes"),
+          nextFollowUpAt,
+          beforeImageUrl,
+          afterImageUrl,
+        },
+      });
+
+      await tx.patient.update({
+        where: { id: patientId },
+        data: {
+          lastVisitAt: controlDate,
+          nextVisitAt: nextFollowUpAt ?? undefined,
+        },
+      });
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Seguimiento guardado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo guardar el seguimiento del paciente."),
+    });
+  }
+}
+
+export async function updatePatientFollowUp(formData: FormData) {
+  const patientId = getRequiredString(formData, "patientId");
+  const redirectTo = getRedirectTarget(formData, `/pacientes/${patientId}`);
+  const id = getId(formData);
+  const controlDate = getOptionalDate(formData, "controlDate") ?? new Date();
+  const nextFollowUpAt = getOptionalDate(formData, "nextFollowUpAt");
+
+  try {
+    const beforeImageUrl =
+      (await uploadPatientFollowUpImage({
+        patientId,
+        file: getOptionalFile(formData, "beforeImageFile"),
+        slot: "before",
+      })) ?? getOptionalString(formData, "currentBeforeImageUrl");
+    const afterImageUrl =
+      (await uploadPatientFollowUpImage({
+        patientId,
+        file: getOptionalFile(formData, "afterImageFile"),
+        slot: "after",
+      })) ?? getOptionalString(formData, "currentAfterImageUrl");
+
+    await prisma.$transaction(async (tx) => {
+      await tx.patientFollowUp.update({
+        where: { id },
+        data: {
+          controlDate,
+          title: getRequiredString(formData, "title"),
+          notes: getOptionalString(formData, "notes"),
+          nextFollowUpAt,
+          beforeImageUrl,
+          afterImageUrl,
+        },
+      });
+
+      const latestFollowUp = await tx.patientFollowUp.findFirst({
+        where: { patientId },
+        orderBy: [{ controlDate: "desc" }, { createdAt: "desc" }],
+        select: {
+          controlDate: true,
+          nextFollowUpAt: true,
+        },
+      });
+
+      await tx.patient.update({
+        where: { id: patientId },
+        data: {
+          lastVisitAt: latestFollowUp?.controlDate ?? undefined,
+          nextVisitAt: latestFollowUp?.nextFollowUpAt ?? null,
+        },
+      });
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Seguimiento actualizado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo actualizar el seguimiento del paciente."),
+    });
+  }
+}
+
+export async function deletePatientFollowUp(formData: FormData) {
+  const patientId = getRequiredString(formData, "patientId");
+  const redirectTo = getRedirectTarget(formData, `/pacientes/${patientId}`);
+  const id = getId(formData);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.patientFollowUp.delete({
+        where: { id },
+      });
+
+      const latestFollowUp = await tx.patientFollowUp.findFirst({
+        where: { patientId },
+        orderBy: [{ controlDate: "desc" }, { createdAt: "desc" }],
+        select: {
+          controlDate: true,
+          nextFollowUpAt: true,
+        },
+      });
+
+      await tx.patient.update({
+        where: { id: patientId },
+        data: {
+          lastVisitAt: latestFollowUp?.controlDate ?? null,
+          nextVisitAt: latestFollowUp?.nextFollowUpAt ?? null,
+        },
+      });
+    });
+
+    finishMutation([redirectTo]);
+    redirectWithMessage(redirectTo, { success: "Seguimiento eliminado correctamente." });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirectWithMessage(redirectTo, {
+      error: getFriendlyErrorMessage(error, "No se pudo eliminar el seguimiento del paciente."),
+    });
+  }
 }
 
 export async function updatePatient(formData: FormData) {

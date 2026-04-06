@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { PaymentMethod } from "@prisma/client";
 
-import { createRevenue, deleteRevenue, updateRevenue } from "@/app/actions";
+import {
+  createPatientFollowUp,
+  createRevenue,
+  deletePatientFollowUp,
+  deleteRevenue,
+  updatePatientFollowUp,
+  updateRevenue,
+} from "@/app/actions";
 import {
   EmptyState,
   Field,
@@ -14,8 +21,11 @@ import {
   textareaClassName,
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { InventoryUsageFields } from "@/components/forms/inventory-usage-fields";
+import { PatientFollowUpImageFields } from "@/components/forms/patient-follow-up-image-fields";
 import {
   formatDate,
+  formatDateInput,
   formatDateTimeInput,
   formatMoney,
   getNetAmount,
@@ -25,6 +35,34 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+function PhotoPreview({
+  label,
+  src,
+}: {
+  label: string;
+  src: string | null | undefined;
+}) {
+  return (
+    <div className="grid gap-2">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">
+        {label}
+      </p>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={label}
+          className="h-44 w-full rounded-3xl border border-(--color-line) object-cover"
+        />
+      ) : (
+        <div className="flex h-44 items-center justify-center rounded-3xl border border-dashed border-(--color-line) bg-[#f8fbff] px-4 text-sm text-(--color-muted)">
+          Sin imagen
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default async function PatientDetailPage({
   params,
@@ -45,6 +83,16 @@ export default async function PatientDetailPage({
     email: string | null;
     nextVisitAt: Date | null;
     importantNotes: string | null;
+    followUps: Array<{
+      id: string;
+      controlDate: Date;
+      title: string;
+      notes: string | null;
+      nextFollowUpAt: Date | null;
+      beforeImageUrl: string | null;
+      afterImageUrl: string | null;
+      createdAt: Date;
+    }>;
     revenues: Array<{
       id: string;
       occurredAt: Date;
@@ -56,6 +104,10 @@ export default async function PatientDetailPage({
       patientId: string;
       saleItemId: string;
       saleItem: { name: string };
+      inventoryUsages: Array<{
+        productId: string;
+        quantity: unknown;
+      }>;
     }>;
   } | null = null;
   let saleItems: Array<{
@@ -64,10 +116,16 @@ export default async function PatientDetailPage({
     unitPrice: unknown;
     baseCost: unknown;
   }> = [];
+  let products: Array<{
+    id: string;
+    name: string;
+    unit: string;
+    costPrice: unknown;
+  }> = [];
   let pageError: string | null = null;
 
   try {
-    [patient, saleItems] = await Promise.all([
+    [patient, saleItems, products] = await Promise.all([
       prisma.patient.findUnique({
         where: { id },
         select: {
@@ -79,8 +137,31 @@ export default async function PatientDetailPage({
           email: true,
           nextVisitAt: true,
           importantNotes: true,
+          followUps: {
+            orderBy: [{ controlDate: "desc" }, { createdAt: "desc" }],
+            take: 30,
+            select: {
+              id: true,
+              controlDate: true,
+              title: true,
+              notes: true,
+              nextFollowUpAt: true,
+              beforeImageUrl: true,
+              afterImageUrl: true,
+              createdAt: true,
+            },
+          },
           revenues: {
-            include: { saleItem: { select: { name: true } } },
+            include: {
+              saleItem: { select: { name: true } },
+              inventoryUsages: {
+                select: {
+                  productId: true,
+                  quantity: true,
+                },
+                orderBy: [{ createdAt: "asc" }],
+              },
+            },
             orderBy: [{ occurredAt: "desc" }],
             take: 20,
           },
@@ -89,6 +170,16 @@ export default async function PatientDetailPage({
       prisma.saleItem.findMany({
         orderBy: { name: "asc" },
         select: { id: true, name: true, unitPrice: true, baseCost: true },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: [{ name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          costPrice: true,
+        },
       }),
     ]);
   } catch {
@@ -120,7 +211,7 @@ export default async function PatientDetailPage({
       <SectionHeading
         eyebrow="Paciente"
         title={patient ? `${patient.firstName} ${patient.lastName}` : "Ficha del paciente"}
-        description="Aqui registras los servicios realizados. El sistema calcula costos y utilidad con base en los productos del inventario usados por cada servicio."
+        description="Aqui registras los servicios realizados, haces seguimiento de controles y guardas fotos de antes y despues."
       />
 
       {resolvedSearchParams?.success ? <Notice tone="success">{resolvedSearchParams.success}</Notice> : null}
@@ -128,158 +219,327 @@ export default async function PatientDetailPage({
       {pageError ? <Notice tone="error">{pageError}</Notice> : null}
 
       {patient ? (
-        <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
-          <div className="grid gap-4">
-            <article className={sectionCardClassName}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Telefono</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{patient.phone}</p>
-                </div>
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Identificacion</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{patient.identification}</p>
-                </div>
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Correo</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{patient.email ?? "Sin correo"}</p>
-                </div>
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Proximo seguimiento</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
-                </div>
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Total cobrado</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
-                </div>
-                <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Ganancia acumulada</p>
-                  <p className="mt-2 font-semibold text-(--color-ink)">{formatMoney(totalCharged - totalCost)}</p>
-                </div>
-              </div>
-              <div className="mt-4 rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Notas importantes</p>
-                <p className="mt-2 text-sm leading-6 text-(--color-ink)">{patient.importantNotes ?? "Sin notas importantes."}</p>
-              </div>
-            </article>
-
-            <FormCard
-              eyebrow="Nuevo servicio"
-              title="Agregar servicio realizado"
-              description="Cada servicio queda guardado con el monto cobrado y el sistema calcula costo y ganancia automaticamente."
-            >
-              <form action={createRevenue} className="grid gap-4">
-                <input type="hidden" name="patientId" value={patient.id} />
-                <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
-                <div className={formGridClassName}>
-                  <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" className={inputClassName} /></Field>
-                  <Field label="Servicio">
-                    <select name="saleItemId" className={inputClassName} required>
-                      <option value="">Selecciona un servicio</option>
-                      {saleItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
-                  <Field label="Descuento"><input name="discountAmount" type="number" step="0.01" min="0" className={inputClassName} /></Field>
-                  <Field label="Medio de pago">
-                    <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
-                      {Object.values(PaymentMethod).map((method) => (
-                        <option key={method} value={method}>
-                          {paymentMethodLabels[method]}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                <Field label="Notas"><textarea name="notes" className={textareaClassName} /></Field>
-                <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
-              </form>
-            </FormCard>
-          </div>
-
-          <FormCard
-            eyebrow="Historial"
-            title="Servicios realizados"
-            description="Aqui ves los servicios ya hechos al paciente y puedes corregir o eliminar cualquier registro."
-          >
-            <div className="grid gap-3">
-              {patient.revenues.length === 0 ? (
-                <EmptyState>Este paciente aun no tiene servicios registrados.</EmptyState>
-              ) : (
-                patient.revenues.map((revenue) => (
-                  <div key={revenue.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-(--color-ink)">{revenue.saleItem.name}</p>
-                        <p className="mt-1 text-sm text-(--color-muted)">
-                          {formatDate(revenue.occurredAt)} · {paymentMethodLabels[revenue.paymentMethod]}
-                        </p>
-                        <p className="mt-1 text-sm text-(--color-muted)">
-                          Cobrado: {formatMoney(revenue.amount)} · Descuento: {formatMoney(revenue.discountAmount)} · Neto: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}
-                        </p>
-                        <p className="mt-1 text-sm text-(--color-muted)">
-                          Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount))}
-                        </p>
-                      </div>
-                    </div>
-                    <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
-                      <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
-                        Editar o eliminar
-                      </summary>
-                      <div className="mt-4 grid gap-4">
-                        <form action={updateRevenue} className="grid gap-4">
-                          <input type="hidden" name="id" value={revenue.id} />
-                          <div className={formGridClassName}>
-                            <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeInput(revenue.occurredAt)} className={inputClassName} /></Field>
-                            <Field label="Servicio">
-                              <select name="saleItemId" defaultValue={revenue.saleItemId} className={inputClassName} required>
-                                {saleItems.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
-                                  </option>
-                                ))}
-                              </select>
-                            </Field>
-                            <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(revenue.amount)} className={inputClassName} required /></Field>
-                            <Field label="Descuento">
-                              <input
-                                name="discountAmount"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                defaultValue={revenue.discountAmount == null ? "" : String(revenue.discountAmount)}
-                                className={inputClassName}
-                              />
-                            </Field>
-                          <Field label="Medio de pago">
-                            <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
-                                {Object.values(PaymentMethod).map((method) => (
-                                  <option key={method} value={method}>
-                                    {paymentMethodLabels[method]}
-                                  </option>
-                                ))}
-                              </select>
-                            </Field>
-                          </div>
-                          <Field label="Notas"><textarea name="notes" defaultValue={revenue.notes ?? ""} className={textareaClassName} /></Field>
-                          <input type="hidden" name="patientId" value={patient.id} />
-                          <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
-                        </form>
-                        <form action={deleteRevenue}>
-                          <input type="hidden" name="id" value={revenue.id} />
-                          <SubmitButton label="Eliminar servicio" pendingLabel="Eliminando..." variant="danger" />
-                        </form>
-                      </div>
-                    </details>
+        <div className="grid gap-4">
+          <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className="grid gap-4">
+              <article className={sectionCardClassName}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Telefono</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{patient.phone}</p>
                   </div>
-                ))
-              )}
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Identificacion</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{patient.identification}</p>
+                  </div>
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Correo</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{patient.email ?? "Sin correo"}</p>
+                  </div>
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Proximo seguimiento</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
+                  </div>
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Total cobrado</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
+                  </div>
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Ganancia acumulada</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{formatMoney(totalCharged - totalCost)}</p>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Notas importantes</p>
+                  <p className="mt-2 text-sm leading-6 text-(--color-ink)">{patient.importantNotes ?? "Sin notas importantes."}</p>
+                </div>
+              </article>
+
+              <FormCard
+                eyebrow="Seguimiento"
+                title="Agregar control e historial"
+                description="Registra cada control con fecha, notas clinicas, proxima cita y enlaces de fotos de antes y despues."
+              >
+                <form action={createPatientFollowUp} className="grid gap-4">
+                  <input type="hidden" name="patientId" value={patient.id} />
+                  <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
+                  <div className={formGridClassName}>
+                    <Field label="Fecha del control">
+                      <input name="controlDate" type="date" className={inputClassName} required />
+                    </Field>
+                    <Field label="Proximo seguimiento">
+                      <input name="nextFollowUpAt" type="date" className={inputClassName} />
+                    </Field>
+                  </div>
+                  <Field label="Titulo del control">
+                    <input
+                      name="title"
+                      className={inputClassName}
+                      placeholder="Ej. Control de botox, revision post tratamiento, valoracion"
+                      required
+                    />
+                  </Field>
+                  <Field label="Notas del seguimiento">
+                    <textarea
+                      name="notes"
+                      className={textareaClassName}
+                      placeholder="Evolucion, respuesta del paciente, recomendaciones y observaciones."
+                    />
+                  </Field>
+                  <PatientFollowUpImageFields />
+                  <div className={formGridClassName}>
+                    <Field label="Foto antes por enlace (opcional)">
+                      <input
+                        name="beforeImageUrl"
+                        type="url"
+                        className={inputClassName}
+                        placeholder="https://..."
+                      />
+                    </Field>
+                    <Field label="Foto despues por enlace (opcional)">
+                      <input
+                        name="afterImageUrl"
+                        type="url"
+                        className={inputClassName}
+                        placeholder="https://..."
+                      />
+                    </Field>
+                  </div>
+                  <SubmitButton label="Guardar seguimiento" pendingLabel="Guardando seguimiento..." />
+                </form>
+              </FormCard>
+
+              <FormCard
+                eyebrow="Nuevo servicio"
+                title="Agregar servicio realizado"
+                description="Cada servicio queda guardado con el monto cobrado y aqui puedes registrar los suministros usados."
+              >
+                <form action={createRevenue} className="grid gap-4">
+                  <input type="hidden" name="patientId" value={patient.id} />
+                  <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
+                  <div className={formGridClassName}>
+                    <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" className={inputClassName} /></Field>
+                    <Field label="Servicio">
+                      <select name="saleItemId" className={inputClassName} required>
+                        <option value="">Selecciona un servicio</option>
+                        {saleItems.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" className={inputClassName} required /></Field>
+                    <Field label="Descuento"><input name="discountAmount" type="number" step="0.01" min="0" className={inputClassName} /></Field>
+                    <Field label="Medio de pago">
+                      <select name="paymentMethod" className={inputClassName} defaultValue="TRANSFER" required>
+                        {Object.values(PaymentMethod).map((method) => (
+                          <option key={method} value={method}>
+                            {paymentMethodLabels[method]}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Notas"><textarea name="notes" className={textareaClassName} /></Field>
+                  <InventoryUsageFields
+                    products={products}
+                    title="Suministros del inventario"
+                    description="Agrega aqui los productos realmente usados en este servicio para descontarlos del inventario y calcular el costo."
+                  />
+                  <SubmitButton label="Guardar servicio" pendingLabel="Guardando servicio..." />
+                </form>
+              </FormCard>
             </div>
-          </FormCard>
+
+            <div className="grid gap-4">
+              <FormCard
+                eyebrow="Historial"
+                title="Controles y seguimientos"
+                description="Aqui ves la evolucion del paciente por fecha y puedes revisar sus fotos de antes y despues."
+              >
+                <div className="grid gap-3">
+                  {patient.followUps.length === 0 ? (
+                    <EmptyState>Este paciente aun no tiene seguimientos registrados.</EmptyState>
+                  ) : (
+                    patient.followUps.map((followUp) => (
+                      <div key={followUp.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-(--color-ink)">{followUp.title}</p>
+                            <p className="mt-1 text-sm text-(--color-muted)">
+                              Control: {formatDate(followUp.controlDate)} · Proximo seguimiento: {formatDate(followUp.nextFollowUpAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-(--color-ink)">
+                          {followUp.notes ?? "Sin notas registradas en este control."}
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <PhotoPreview label="Antes" src={followUp.beforeImageUrl} />
+                          <PhotoPreview label="Despues" src={followUp.afterImageUrl} />
+                        </div>
+                        <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                          <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                            Editar o eliminar seguimiento
+                          </summary>
+                          <div className="mt-4 grid gap-4">
+                            <form action={updatePatientFollowUp} className="grid gap-4">
+                              <input type="hidden" name="id" value={followUp.id} />
+                              <input type="hidden" name="patientId" value={patient.id} />
+                              <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
+                              <div className={formGridClassName}>
+                                <Field label="Fecha del control">
+                                  <input
+                                    name="controlDate"
+                                    type="date"
+                                    defaultValue={formatDateInput(followUp.controlDate)}
+                                    className={inputClassName}
+                                    required
+                                  />
+                                </Field>
+                                <Field label="Proximo seguimiento">
+                                  <input
+                                    name="nextFollowUpAt"
+                                    type="date"
+                                    defaultValue={formatDateInput(followUp.nextFollowUpAt)}
+                                    className={inputClassName}
+                                  />
+                                </Field>
+                              </div>
+                              <Field label="Titulo del control">
+                                <input name="title" defaultValue={followUp.title} className={inputClassName} required />
+                              </Field>
+                              <Field label="Notas del seguimiento">
+                                <textarea name="notes" defaultValue={followUp.notes ?? ""} className={textareaClassName} />
+                              </Field>
+                              <PatientFollowUpImageFields />
+                              <div className={formGridClassName}>
+                                <Field label="Foto antes por enlace (opcional)">
+                                  <input
+                                    name="beforeImageUrl"
+                                    type="url"
+                                    defaultValue={followUp.beforeImageUrl ?? ""}
+                                    className={inputClassName}
+                                  />
+                                </Field>
+                                <Field label="Foto despues por enlace (opcional)">
+                                  <input
+                                    name="afterImageUrl"
+                                    type="url"
+                                    defaultValue={followUp.afterImageUrl ?? ""}
+                                    className={inputClassName}
+                                  />
+                                </Field>
+                              </div>
+                              <input type="hidden" name="currentBeforeImageUrl" value={followUp.beforeImageUrl ?? ""} />
+                              <input type="hidden" name="currentAfterImageUrl" value={followUp.afterImageUrl ?? ""} />
+                              <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                            </form>
+                            <form action={deletePatientFollowUp}>
+                              <input type="hidden" name="id" value={followUp.id} />
+                              <input type="hidden" name="patientId" value={patient.id} />
+                              <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
+                              <SubmitButton label="Eliminar seguimiento" pendingLabel="Eliminando..." variant="danger" />
+                            </form>
+                          </div>
+                        </details>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </FormCard>
+
+              <FormCard
+                eyebrow="Historial"
+                title="Servicios realizados"
+                description="Aqui ves los servicios ya hechos al paciente y puedes corregir o eliminar cualquier registro."
+              >
+                <div className="grid gap-3">
+                  {patient.revenues.length === 0 ? (
+                    <EmptyState>Este paciente aun no tiene servicios registrados.</EmptyState>
+                  ) : (
+                    patient.revenues.map((revenue) => (
+                      <div key={revenue.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-(--color-ink)">{revenue.saleItem.name}</p>
+                            <p className="mt-1 text-sm text-(--color-muted)">
+                              {formatDate(revenue.occurredAt)} · {paymentMethodLabels[revenue.paymentMethod]}
+                            </p>
+                            <p className="mt-1 text-sm text-(--color-muted)">
+                              Cobrado: {formatMoney(revenue.amount)} · Descuento: {formatMoney(revenue.discountAmount)} · Neto: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount))}
+                            </p>
+                            <p className="mt-1 text-sm text-(--color-muted)">
+                              Costo: {formatMoney(revenue.costAmount)} · Ganancia: {formatMoney(getNetAmount(revenue.amount, revenue.discountAmount) - toNumber(revenue.costAmount))}
+                            </p>
+                          </div>
+                        </div>
+                        <details className="mt-4 rounded-3xl border border-(--color-line) bg-[#fcfaf7] px-4 py-4">
+                          <summary className="cursor-pointer text-sm font-semibold text-(--color-ink)">
+                            Editar o eliminar
+                          </summary>
+                          <div className="mt-4 grid gap-4">
+                            <form action={updateRevenue} className="grid gap-4">
+                              <input type="hidden" name="id" value={revenue.id} />
+                              <div className={formGridClassName}>
+                                <Field label="Fecha y hora"><input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeInput(revenue.occurredAt)} className={inputClassName} /></Field>
+                                <Field label="Servicio">
+                                  <select name="saleItemId" defaultValue={revenue.saleItemId} className={inputClassName} required>
+                                    {saleItems.map((item) => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.name} · precio sugerido {formatMoney(item.unitPrice)} · costo base {formatMoney(item.baseCost)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </Field>
+                                <Field label="Cuanto le cobraste"><input name="amount" type="number" step="0.01" min="0" defaultValue={String(revenue.amount)} className={inputClassName} required /></Field>
+                                <Field label="Descuento">
+                                  <input
+                                    name="discountAmount"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    defaultValue={revenue.discountAmount == null ? "" : String(revenue.discountAmount)}
+                                    className={inputClassName}
+                                  />
+                                </Field>
+                                <Field label="Medio de pago">
+                                  <select name="paymentMethod" defaultValue={revenue.paymentMethod} className={inputClassName} required>
+                                    {Object.values(PaymentMethod).map((method) => (
+                                      <option key={method} value={method}>
+                                        {paymentMethodLabels[method]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </Field>
+                              </div>
+                              <Field label="Notas"><textarea name="notes" defaultValue={revenue.notes ?? ""} className={textareaClassName} /></Field>
+                              <InventoryUsageFields
+                                products={products}
+                                title="Suministros del inventario"
+                                description="Ajusta los productos usados en este servicio para recalcular costo y stock."
+                                initialValues={revenue.inventoryUsages.map((usage) => ({
+                                  productId: usage.productId,
+                                  quantity: String(usage.quantity),
+                                }))}
+                              />
+                              <input type="hidden" name="patientId" value={patient.id} />
+                              <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
+                            </form>
+                            <form action={deleteRevenue}>
+                              <input type="hidden" name="id" value={revenue.id} />
+                              <SubmitButton label="Eliminar servicio" pendingLabel="Eliminando..." variant="danger" />
+                            </form>
+                          </div>
+                        </details>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </FormCard>
+            </div>
+          </div>
         </div>
       ) : null}
     </>
