@@ -122,9 +122,26 @@ function AccountsReceivableIcon(active: boolean) {
   );
 }
 
+function CalendarIcon(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" className={`h-7 w-7 ${active ? "text-white" : "text-[#4b5567]"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7.5 3.75v3" />
+      <path d="M16.5 3.75v3" />
+      <path d="M4.5 9h15" />
+      <rect x="4.5" y="5.25" width="15" height="14.25" rx="2.25" />
+      <path d="M8.25 12.75h.008v.008H8.25z" />
+      <path d="M12 12.75h.008v.008H12z" />
+      <path d="M15.75 12.75h.008v.008h-.008z" />
+      <path d="M8.25 16.5h.008v.008H8.25z" />
+      <path d="M12 16.5h.008v.008H12z" />
+    </svg>
+  );
+}
+
 const links: NavLink[] = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/pacientes", label: "Pacientes", icon: PatientsIcon },
+  { href: "/calendario", label: "Calendario", icon: CalendarIcon },
   { href: "/proveedores", label: "Proveedores", icon: SuppliersIcon },
   { href: "/inventario", label: "Inventario", icon: InventoryIcon },
   { href: "/servicios", label: "Servicios", icon: ServicesIcon },
