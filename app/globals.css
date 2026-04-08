@@ -3,6 +3,8 @@
 :root {
   --background: #f3f6fb;
   --foreground: #111827;
+  --font-manrope: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-cormorant: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --color-ink: #111827;
   --color-muted: #667085;
   --color-line: rgba(148, 163, 184, 0.22);

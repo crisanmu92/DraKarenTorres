@@ -14,7 +14,7 @@ import {
 import { CalendarLinks } from "@/components/forms/calendar-links";
 import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateTime, formatDateTimeInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateInput, formatDateTime, formatDateTimeInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 function ViewIcon() {
