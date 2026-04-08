@@ -328,7 +328,7 @@ async function buildInventoryTables() {
         "Stock",
         "Stock minimo",
         "Unidad",
-        "Vence",
+        "Fecha de compra",
         "Activo",
         "Proveedor",
       ],

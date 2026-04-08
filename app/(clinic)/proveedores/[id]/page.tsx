@@ -180,8 +180,8 @@ export default async function SupplierDetailPage({
                     <p className={helperTextClassName}>El sistema calcula el costo unitario automaticamente con base en la cantidad.</p>
                   </div>
                   <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
-                    <Field label="Vence"><input name="expiresAt" type="date" className={inputClassName} /></Field>
-                    <p className={helperTextClassName} />
+                    <Field label="Fecha de compra"><input name="expiresAt" type="date" className={inputClassName} /></Field>
+                    <p className={helperTextClassName}>Registra aqui el dia en que hiciste esta compra al proveedor.</p>
                   </div>
                 </div>
                 <Field label="Descripcion" hint="Aqui puedes dejar el peso, los ml, la referencia o cualquier detalle adicional de la presentacion.">
@@ -214,7 +214,7 @@ export default async function SupplierDetailPage({
                           {toNumber(product.costPrice) > 0 ? ` · Valor total ${formatMoney(toNumber(product.costPrice) * toNumber(product.stockQuantity))}` : ""}
                         </p>
                         <p className="mt-1 text-sm text-(--color-muted)">
-                          {product.expiresAt ? `Vence ${formatDate(product.expiresAt)}` : "Sin fecha de vencimiento"}
+                          {product.expiresAt ? `Compra del ${formatDate(product.expiresAt)}` : "Sin fecha de compra"}
                         </p>
                         {product.description ? (
                           <p className="mt-2 text-sm leading-6 text-(--color-muted)">{product.description}</p>
@@ -259,7 +259,7 @@ export default async function SupplierDetailPage({
                                 required
                               />
                             </Field>
-                            <Field label="Vence"><input name="expiresAt" type="date" defaultValue={product.expiresAt ? product.expiresAt.toISOString().slice(0, 10) : ""} className={inputClassName} /></Field>
+                            <Field label="Fecha de compra"><input name="expiresAt" type="date" defaultValue={product.expiresAt ? product.expiresAt.toISOString().slice(0, 10) : ""} className={inputClassName} /></Field>
                           </div>
                           <Field label="Descripcion"><textarea name="description" defaultValue={product.description ?? ""} className={textareaClassName} /></Field>
                           <SubmitButton label="Guardar cambios" pendingLabel="Guardando cambios..." variant="secondary" />
