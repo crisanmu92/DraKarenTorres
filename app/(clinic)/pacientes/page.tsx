@@ -11,6 +11,7 @@ import {
   inputClassName,
   textareaClassName,
 } from "@/components/clinic/ui";
+import { CalendarLinks } from "@/components/forms/calendar-links";
 import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { formatDate, formatDateInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
@@ -227,6 +228,13 @@ export default async function PatientsPage({
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalProfit)}</p>
                         <div className="flex items-center gap-2">
+                          <CalendarLinks
+                            patientId={patient.id}
+                            patientName={fullName}
+                            date={patient.nextVisitAt}
+                            title={`Control de ${fullName}`}
+                            compact
+                          />
                           <Link
                             href={`/pacientes/${patient.id}`}
                             className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#dbe5ff] bg-[#eef4ff] text-[#2f5be7]"

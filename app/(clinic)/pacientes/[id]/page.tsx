@@ -22,6 +22,7 @@ import {
 } from "@/components/clinic/ui";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { InventoryUsageFields } from "@/components/forms/inventory-usage-fields";
+import { CalendarLinks } from "@/components/forms/calendar-links";
 import { PatientFollowUpImageFields } from "@/components/forms/patient-follow-up-image-fields";
 import {
   formatDate,
@@ -239,6 +240,14 @@ export default async function PatientDetailPage({
                   <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Proximo seguimiento</p>
                     <p className="mt-2 font-semibold text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
+                    <div className="mt-3">
+                      <CalendarLinks
+                        patientId={patient.id}
+                        patientName={`${patient.firstName} ${patient.lastName}`}
+                        date={patient.nextVisitAt}
+                        title={`Control de ${patient.firstName} ${patient.lastName}`}
+                      />
+                    </div>
                   </div>
                   <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Total cobrado</p>
@@ -371,6 +380,14 @@ export default async function PatientDetailPage({
                               Control: {formatDate(followUp.controlDate)} · Proximo seguimiento: {formatDate(followUp.nextFollowUpAt)}
                             </p>
                           </div>
+                          <CalendarLinks
+                            patientId={patient.id}
+                            patientName={`${patient.firstName} ${patient.lastName}`}
+                            date={followUp.nextFollowUpAt}
+                            title={`${followUp.title} · ${patient.firstName} ${patient.lastName}`}
+                            notes={followUp.notes}
+                            compact
+                          />
                         </div>
                         <p className="mt-3 text-sm leading-6 text-(--color-ink)">
                           {followUp.notes ?? "Sin notas registradas en este control."}
