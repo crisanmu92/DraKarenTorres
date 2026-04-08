@@ -26,6 +26,7 @@ import { CalendarLinks } from "@/components/forms/calendar-links";
 import { PatientFollowUpImageFields } from "@/components/forms/patient-follow-up-image-fields";
 import {
   formatDate,
+  formatDateTime,
   formatDateInput,
   formatDateTimeInput,
   formatMoney,
@@ -34,6 +35,50 @@ import {
   toNumber,
 } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
+
+function getFollowUpTone(title: string) {
+  const normalized = title.toLowerCase();
+
+  if (normalized.includes("botox")) {
+    return "bg-[#eef4ff] text-[#1d4ed8] border-[#c7d7fe]";
+  }
+
+  if (normalized.includes("acido") || normalized.includes("hialuron")) {
+    return "bg-[#fff4e6] text-[#b45309] border-[#f8d5a4]";
+  }
+
+  if (normalized.includes("laser")) {
+    return "bg-[#f5ecff] text-[#7c3aed] border-[#dcc7ff]";
+  }
+
+  if (normalized.includes("control") || normalized.includes("revision")) {
+    return "bg-[#eefbf4] text-[#15803d] border-[#c7efd8]";
+  }
+
+  return "bg-[#f4f4f5] text-[#3f3f46] border-[#e4e4e7]";
+}
+
+function getFollowUpCategoryLabel(title: string) {
+  const normalized = title.toLowerCase();
+
+  if (normalized.includes("botox")) {
+    return "Botox";
+  }
+
+  if (normalized.includes("acido") || normalized.includes("hialuron")) {
+    return "Acido hialuronico";
+  }
+
+  if (normalized.includes("laser")) {
+    return "Laser";
+  }
+
+  if (normalized.includes("control") || normalized.includes("revision")) {
+    return "Control";
+  }
+
+  return "Seguimiento";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -239,7 +284,7 @@ export default async function PatientDetailPage({
                   </div>
                   <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Proximo seguimiento</p>
-                    <p className="mt-2 font-semibold text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{formatDateTime(patient.nextVisitAt)}</p>
                     <div className="mt-3">
                       <CalendarLinks
                         patientId={patient.id}
@@ -277,7 +322,7 @@ export default async function PatientDetailPage({
                       <input name="controlDate" type="date" className={inputClassName} required />
                     </Field>
                     <Field label="Proximo seguimiento">
-                      <input name="nextFollowUpAt" type="date" className={inputClassName} />
+                      <input name="nextFollowUpAt" type="datetime-local" className={inputClassName} />
                     </Field>
                   </div>
                   <Field label="Titulo del control">
@@ -375,9 +420,14 @@ export default async function PatientDetailPage({
                       <div key={followUp.id} className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="font-semibold text-(--color-ink)">{followUp.title}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-(--color-ink)">{followUp.title}</p>
+                              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getFollowUpTone(followUp.title)}`}>
+                                {getFollowUpCategoryLabel(followUp.title)}
+                              </span>
+                            </div>
                             <p className="mt-1 text-sm text-(--color-muted)">
-                              Control: {formatDate(followUp.controlDate)} · Proximo seguimiento: {formatDate(followUp.nextFollowUpAt)}
+                              Control: {formatDate(followUp.controlDate)} · Proximo seguimiento: {formatDateTime(followUp.nextFollowUpAt)}
                             </p>
                           </div>
                           <CalendarLinks
@@ -418,8 +468,8 @@ export default async function PatientDetailPage({
                                 <Field label="Proximo seguimiento">
                                   <input
                                     name="nextFollowUpAt"
-                                    type="date"
-                                    defaultValue={formatDateInput(followUp.nextFollowUpAt)}
+                                    type="datetime-local"
+                                    defaultValue={formatDateTimeInput(followUp.nextFollowUpAt)}
                                     className={inputClassName}
                                   />
                                 </Field>

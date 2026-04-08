@@ -47,6 +47,29 @@ export function formatDate(value: Date | null | undefined) {
   return dateFormatter.format(value);
 }
 
+export function hasExplicitTime(value: Date | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return value.getHours() !== 0 || value.getMinutes() !== 0;
+}
+
+export function formatDateTime(value: Date | null | undefined) {
+  if (!value) {
+    return "Sin fecha";
+  }
+
+  if (!hasExplicitTime(value)) {
+    return formatDate(value);
+  }
+
+  return new Intl.DateTimeFormat("es-CO", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
+}
+
 function padNumber(value: number) {
   return value.toString().padStart(2, "0");
 }

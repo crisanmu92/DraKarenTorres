@@ -14,7 +14,7 @@ import {
 import { CalendarLinks } from "@/components/forms/calendar-links";
 import { ExportLink } from "@/components/forms/export-link";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { formatDate, formatDateInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
+import { formatDate, formatDateTime, formatDateTimeInput, formatMoney, getNetAmount, toNumber } from "@/lib/clinic-format";
 import { prisma } from "@/lib/prisma";
 
 function ViewIcon() {
@@ -223,7 +223,7 @@ export default async function PatientsPage({
                         </div>
                         <p className="text-sm text-(--color-ink)">{patient.phone || "-"}</p>
                         <p className="text-sm text-(--color-ink)">{formatDate(firstVisitDate)}</p>
-                        <p className="text-sm text-(--color-ink)">{formatDate(patient.nextVisitAt)}</p>
+                        <p className="text-sm text-(--color-ink)">{formatDateTime(patient.nextVisitAt)}</p>
                         <p className="text-sm text-(--color-ink)">{patient.revenues.length}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalCharged)}</p>
                         <p className="text-sm font-semibold text-(--color-ink)">{formatMoney(totalProfit)}</p>
@@ -257,7 +257,7 @@ export default async function PatientsPage({
                                   <Field label="Correo"><input name="email" type="email" defaultValue={patient.email ?? ""} className={inputClassName} /></Field>
                                   <Field label="Fecha de nacimiento"><input name="birthDate" type="date" defaultValue={formatDateInput(patient.birthDate)} className={inputClassName} /></Field>
                                   <Field label="Ultima visita"><input name="lastVisitAt" type="date" defaultValue={formatDateInput(patient.lastVisitAt)} className={inputClassName} /></Field>
-                                  <Field label="Proximo seguimiento"><input name="nextVisitAt" type="date" defaultValue={formatDateInput(patient.nextVisitAt)} className={inputClassName} /></Field>
+                                  <Field label="Proximo seguimiento"><input name="nextVisitAt" type="datetime-local" defaultValue={formatDateTimeInput(patient.nextVisitAt)} className={inputClassName} /></Field>
                                 </div>
                                 <Field label="Alergias"><textarea name="allergies" defaultValue={patient.allergies ?? ""} className={textareaClassName} /></Field>
                                 <Field label="Historial o servicios previos"><textarea name="previousTreatments" defaultValue={patient.previousTreatments ?? ""} className={textareaClassName} /></Field>
@@ -281,7 +281,7 @@ export default async function PatientsPage({
                       <div className="grid gap-2 border-t border-(--color-line) bg-[#fcfaf7] px-4 py-3 text-sm text-(--color-muted) md:hidden">
                         <p>Telefono: {patient.phone || "-"}</p>
                         <p>Primera visita: {formatDate(firstVisitDate)}</p>
-                        <p>Proxima visita: {formatDate(patient.nextVisitAt)}</p>
+                        <p>Proxima visita: {formatDateTime(patient.nextVisitAt)}</p>
                         <p>Servicios hechos: {patient.revenues.length}</p>
                         <p>Total cobrado: {formatMoney(totalCharged)}</p>
                         <p>Ganancia acumulada: {formatMoney(totalProfit)}</p>

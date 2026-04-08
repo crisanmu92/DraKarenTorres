@@ -18,6 +18,17 @@ function formatIcsDate(value: Date) {
   return `${year}${month}${day}`;
 }
 
+function formatIcsDateTime(value: Date) {
+  const year = value.getUTCFullYear();
+  const month = `${value.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${value.getUTCDate()}`.padStart(2, "0");
+  const hours = `${value.getUTCHours()}`.padStart(2, "0");
+  const minutes = `${value.getUTCMinutes()}`.padStart(2, "0");
+  const seconds = `${value.getUTCSeconds()}`.padStart(2, "0");
+
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+}
+
 function addDays(value: Date, days: number) {
   const result = new Date(value);
   result.setDate(result.getDate() + days);
@@ -31,6 +42,10 @@ function parseDate(value: string | null) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function hasExplicitTime(value: Date) {
+  return value.getHours() !== 0 || value.getMinutes() !== 0;
 }
 
 export async function GET(request: Request, context: RouteContext<"/api/calendar/patients/[id]">) {
@@ -67,18 +82,20 @@ export async function GET(request: Request, context: RouteContext<"/api/calendar
   ].filter(Boolean);
 
   const todayStamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  const startDate = formatIcsDate(date);
-  const endDate = formatIcsDate(addDays(date, 1));
+  const timedEvent = hasExplicitTime(date);
+  const eventStamp = timedEvent ? formatIcsDateTime(date) : formatIcsDate(date);
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Dra Karen Torres//Calendario Pacientes//ES",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
-    `UID:patient-${id}-${startDate}@dra-karen-torres`,
+    `UID:patient-${id}-${eventStamp}@dra-karen-torres`,
     `DTSTAMP:${todayStamp}`,
-    `DTSTART;VALUE=DATE:${startDate}`,
-    `DTEND;VALUE=DATE:${endDate}`,
+    timedEvent ? `DTSTART:${formatIcsDateTime(date)}` : `DTSTART;VALUE=DATE:${formatIcsDate(date)}`,
+    timedEvent
+      ? `DTEND:${formatIcsDateTime(new Date(date.getTime() + 60 * 60 * 1000))}`
+      : `DTEND;VALUE=DATE:${formatIcsDate(addDays(date, 1))}`,
     `SUMMARY:${escapeIcsText(title)}`,
     `DESCRIPTION:${escapeIcsText(descriptionLines.join("\n"))}`,
     "END:VEVENT",
