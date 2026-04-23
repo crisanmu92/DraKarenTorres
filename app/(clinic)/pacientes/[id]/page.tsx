@@ -168,10 +168,12 @@ export default async function PatientDetailPage({
     unit: string;
     costPrice: unknown;
   }> = [];
+  let firstRevenueDate: Date | null = null;
+  let firstFollowUpDate: Date | null = null;
   let pageError: string | null = null;
 
   try {
-    [patient, saleItems, products] = await Promise.all([
+    const [resolvedPatient, resolvedSaleItems, resolvedProducts, earliestRevenue, earliestFollowUp] = await Promise.all([
       prisma.patient.findUnique({
         where: { id },
         select: {
@@ -227,7 +229,27 @@ export default async function PatientDetailPage({
           costPrice: true,
         },
       }),
+      prisma.revenue.findFirst({
+        where: { patientId: id },
+        orderBy: [{ occurredAt: "asc" }],
+        select: {
+          occurredAt: true,
+        },
+      }),
+      prisma.patientFollowUp.findFirst({
+        where: { patientId: id },
+        orderBy: [{ controlDate: "asc" }, { createdAt: "asc" }],
+        select: {
+          controlDate: true,
+        },
+      }),
     ]);
+
+    patient = resolvedPatient;
+    saleItems = resolvedSaleItems;
+    products = resolvedProducts;
+    firstRevenueDate = earliestRevenue?.occurredAt ?? null;
+    firstFollowUpDate = earliestFollowUp?.controlDate ?? null;
   } catch {
     pageError = "No se pudo cargar la ficha del paciente.";
   }
@@ -242,6 +264,12 @@ export default async function PatientDetailPage({
       0,
     ) ?? 0;
   const totalCost = patient?.revenues.reduce((sum, revenue) => sum + toNumber(revenue.costAmount), 0) ?? 0;
+  const firstVisitDate =
+    firstRevenueDate && firstFollowUpDate
+      ? firstRevenueDate <= firstFollowUpDate
+        ? firstRevenueDate
+        : firstFollowUpDate
+      : firstRevenueDate ?? firstFollowUpDate ?? patient?.lastVisitAt ?? null;
 
   return (
     <>
@@ -283,6 +311,10 @@ export default async function PatientDetailPage({
                     <p className="mt-2 font-semibold text-(--color-ink)">{patient.email ?? "Sin correo"}</p>
                   </div>
                   <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Primera visita</p>
+                    <p className="mt-2 font-semibold text-(--color-ink)">{formatDate(firstVisitDate)}</p>
+                  </div>
+                  <div className="rounded-3xl border border-(--color-line) bg-white px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--color-muted)">Proximo seguimiento</p>
                     <p className="mt-2 font-semibold text-(--color-ink)">{formatDateTime(patient.nextVisitAt)}</p>
                     <div className="mt-3">
@@ -318,7 +350,7 @@ export default async function PatientDetailPage({
                   <input type="hidden" name="patientId" value={patient.id} />
                   <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
                   <div className={formGridClassName}>
-                    <Field label="Fecha del control">
+                    <Field label="Fecha del servicio">
                       <input name="controlDate" type="date" className={inputClassName} required />
                     </Field>
                     <Field label="Proximo seguimiento">
@@ -456,7 +488,7 @@ export default async function PatientDetailPage({
                               <input type="hidden" name="patientId" value={patient.id} />
                               <input type="hidden" name="redirectTo" value={`/pacientes/${patient.id}`} />
                               <div className={formGridClassName}>
-                                <Field label="Fecha del control">
+                                <Field label="Fecha del servicio">
                                   <input
                                     name="controlDate"
                                     type="date"
