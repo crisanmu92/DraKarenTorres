@@ -127,6 +127,7 @@ export default async function PatientDetailPage({
     identification: string;
     phone: string;
     email: string | null;
+    lastVisitAt: Date | null;
     nextVisitAt: Date | null;
     importantNotes: string | null;
     followUps: Array<{
@@ -183,6 +184,7 @@ export default async function PatientDetailPage({
           identification: true,
           phone: true,
           email: true,
+          lastVisitAt: true,
           nextVisitAt: true,
           importantNotes: true,
           followUps: {
