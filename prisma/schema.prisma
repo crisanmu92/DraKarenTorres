@@ -63,12 +63,31 @@ model Patient {
   nextVisitAt        DateTime?
   revenues           Revenue[]
   accountsReceivable AccountReceivable[]
+  followUps          PatientFollowUp[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   @@index([lastName, firstName])
   @@index([lastVisitAt])
   @@index([nextVisitAt])
+}
+
+model PatientFollowUp {
+  id              String   @id @default(cuid())
+  patientId       String
+  controlDate     DateTime
+  title           String
+  notes           String?
+  nextFollowUpAt  DateTime?
+  beforeImageUrl  String?
+  afterImageUrl   String?
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([controlDate])
+  @@index([nextFollowUpAt])
 }
 
 model Supplier {
@@ -269,4 +288,29 @@ model InventoryMovement {
   @@index([occurredAt])
   @@index([productId])
   @@index([type])
+}
+
+model AppUser {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  displayName  String?
+  passwordHash String
+  sessions     AppSession[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([email])
+}
+
+model AppSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
